@@ -37,7 +37,14 @@ This document compares the current SCIMTool implementation with the SCIM 2.0 spe
 | DELETE | ✅ | `DELETE /Users/{id}`, `DELETE /Groups/{id}` |
 | GET (List) | ✅ | `GET /Users`, `GET /Groups` with pagination |
 
-### 3. PATCH Operations (RFC 7644 §3.5.2)
+### 3. Media Type (RFC 7644 §3.1)
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Request `Content-Type` | ✅ | Accepts `application/scim+json` and `application/json` |
+| Response `Content-Type` | ✅ | Returns `application/scim+json; charset=utf-8` via `ScimContentTypeInterceptor` |
+
+### 4. PATCH Operations (RFC 7644 §3.5.2)
 
 | Operation | Status | Notes |
 |-----------|--------|-------|
@@ -46,7 +53,7 @@ This document compares the current SCIMTool implementation with the SCIM 2.0 spe
 | `replace` | ✅ | Replace attribute values |
 | PatchOp schema | ✅ | Uses `urn:ietf:params:scim:api:messages:2.0:PatchOp` |
 
-### 4. List Response (RFC 7644 §3.4.2)
+### 5. List Response (RFC 7644 §3.4.2)
 
 | Feature | Status | Notes |
 |---------|--------|-------|
@@ -56,7 +63,7 @@ This document compares the current SCIMTool implementation with the SCIM 2.0 spe
 | `itemsPerPage` | ✅ | Actual number returned |
 | `Resources` array | ✅ | Array of resource objects |
 
-### 5. Error Responses (RFC 7644 §3.12)
+### 6. Error Responses (RFC 7644 §3.12)
 
 | Feature | Status | Notes |
 |---------|--------|-------|
@@ -65,7 +72,7 @@ This document compares the current SCIMTool implementation with the SCIM 2.0 spe
 | `detail` | ✅ | Human-readable message |
 | `scimType` | ✅ | Optional SCIM error type |
 
-### 6. Discovery Endpoints (RFC 7644 §4)
+### 7. Discovery Endpoints (RFC 7644 §4)
 
 | Endpoint | Status | Notes |
 |----------|--------|-------|
@@ -73,7 +80,7 @@ This document compares the current SCIMTool implementation with the SCIM 2.0 spe
 | `/ResourceTypes` | ✅ | Returns User/Group types |
 | `/Schemas` | ✅ | Returns schema definitions |
 
-### 7. Filtering (RFC 7644 §3.4.2.2)
+### 8. Filtering (RFC 7644 §3.4.2.2)
 
 | Feature | Status | Notes |
 |---------|--------|-------|
@@ -196,6 +203,7 @@ This document compares the current SCIMTool implementation with the SCIM 2.0 spe
 |----------|-------|-------|
 | Core Operations | **95%** | All CRUD operations work correctly |
 | Resource Types | **90%** | User and Group supported with most attributes |
+| Media Type | **100%** | Returns `application/scim+json` per RFC 7644 §3.1 |
 | Discovery | **100%** | All 3 endpoints implemented |
 | Error Handling | **95%** | Proper SCIM error format |
 | Filtering | **60%** | Basic `eq` works, complex filters limited |
@@ -220,6 +228,7 @@ The implementation covers the most critical SCIM 2.0 features needed for Azure A
 | `endpoint-scim.controller.ts` | Endpoint-scoped SCIM API routes |
 | `endpoint-scim-users.service.ts` | User CRUD with endpoint isolation |
 | `endpoint-scim-groups.service.ts` | Group CRUD with endpoint isolation |
+| `scim-content-type.interceptor.ts` | Sets `Content-Type: application/scim+json` on all responses (RFC 7644 §3.1) |
 | `scim-constants.ts` | SCIM schema URNs and constants |
 | `scim-errors.ts` | SCIM error response format |
 | `scim-types.ts` | TypeScript interfaces for SCIM resources |

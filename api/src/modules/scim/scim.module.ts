@@ -1,4 +1,5 @@
 ﻿import { Module } from '@nestjs/common';
+import { APP_INTERCEPTOR } from '@nestjs/core';
 
 import { LoggingModule } from '../logging/logging.module';
 import { PrismaModule } from '../prisma/prisma.module';
@@ -16,6 +17,7 @@ import { ScimUsersService } from './services/scim-users.service';
 import { EndpointScimUsersService } from './services/endpoint-scim-users.service';
 import { EndpointScimGroupsService } from './services/endpoint-scim-groups.service';
 import { EndpointContextStorage } from '../endpoint/endpoint-context.storage';
+import { ScimContentTypeInterceptor } from './interceptors/scim-content-type.interceptor';
 
 @Module({
   imports: [PrismaModule, LoggingModule, EndpointModule],
@@ -34,7 +36,11 @@ import { EndpointContextStorage } from '../endpoint/endpoint-context.storage';
     ScimMetadataService,
     EndpointScimUsersService,
     EndpointScimGroupsService,
-    EndpointContextStorage
+    EndpointContextStorage,
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: ScimContentTypeInterceptor
+    }
   ]
 })
 export class ScimModule {}

@@ -1,4 +1,4 @@
-# SCIMTool — Complete REST API Reference
+# SCIMTool ï¿½ Complete REST API Reference
 
 This document enumerates all REST API endpoints and resources exposed by the SCIMTool application, with HTTP methods, purpose, common query parameters, expected request and response shapes, authentication notes, and `curl` examples for each operation.
 
@@ -14,17 +14,18 @@ Authentication
 - Public endpoints are decorated with `@Public()` (static web UI and OAuth token endpoint).
 
 Content type
-- Use `Content-Type: application/scim+json` for SCIM resource create/replace/patch where applicable. Controllers typically set response header accordingly.
+- **Request:** Use `Content-Type: application/scim+json` or `application/json` for SCIM resource create/replace/patch operations.
+- **Response:** All SCIM endpoints return `Content-Type: application/scim+json; charset=utf-8` as required by [RFC 7644 Â§3.1](https://datatracker.ietf.org/doc/html/rfc7644#section-3.1). This is enforced globally via the `ScimContentTypeInterceptor`.
 
 Common response codes
-- 200 OK — successful retrieval or update (sometimes 204 for operations that return no content).
-- 201 Created — resource created.
-- 204 No Content — successful deletion or empty responses where specified.
-- 400 Bad Request — validation or malformed payload.
-- 401 Unauthorized — missing/invalid token.
-- 404 Not Found — resource not found.
-- 409 Conflict — uniqueness collision (SCIM uniqueness error).
-- 500 Internal Server Error — unexpected failures.
+- 200 OK ï¿½ successful retrieval or update (sometimes 204 for operations that return no content).
+- 201 Created ï¿½ resource created.
+- 204 No Content ï¿½ successful deletion or empty responses where specified.
+- 400 Bad Request ï¿½ validation or malformed payload.
+- 401 Unauthorized ï¿½ missing/invalid token.
+- 404 Not Found ï¿½ resource not found.
+- 409 Conflict ï¿½ uniqueness collision (SCIM uniqueness error).
+- 500 Internal Server Error ï¿½ unexpected failures.
 
 Contents
 - SCIM metadata endpoints
@@ -32,36 +33,36 @@ Contents
   - `GET /ResourceTypes`
   - `GET /Schemas`
 - Users resource
-  - `POST /Users` — create
-  - `GET /Users` — list / filter
-  - `GET /Users/:id` — get by id
-  - `PUT /Users/:id` — replace
-  - `PATCH /Users/:id` — patch
-  - `DELETE /Users/:id` — delete
+  - `POST /Users` ï¿½ create
+  - `GET /Users` ï¿½ list / filter
+  - `GET /Users/:id` ï¿½ get by id
+  - `PUT /Users/:id` ï¿½ replace
+  - `PATCH /Users/:id` ï¿½ patch
+  - `DELETE /Users/:id` ï¿½ delete
 - Groups resource
-  - `POST /Groups` — create
-  - `GET /Groups` — list / filter
-  - `GET /Groups/:id` — get by id
-  - `PUT /Groups/:id` — replace
-  - `PATCH /Groups/:id` — patch (controller returns 204)
-  - `DELETE /Groups/:id` — delete
+  - `POST /Groups` ï¿½ create
+  - `GET /Groups` ï¿½ list / filter
+  - `GET /Groups/:id` ï¿½ get by id
+  - `PUT /Groups/:id` ï¿½ replace
+  - `PATCH /Groups/:id` ï¿½ patch (controller returns 204)
+  - `DELETE /Groups/:id` ï¿½ delete
 - Admin endpoints (`/admin`)
-  - `GET /admin/version` — version & deployment info
-  - `GET /admin/logs` — list request logs (with filters)
-  - `GET /admin/logs/:id` — get single log
-  - `POST /admin/logs/clear` — clear logs (204)
-  - `POST /admin/users/manual` — create manual user (admin convenience)
-  - `POST /admin/groups/manual` — create manual group
-  - `POST /admin/users/:id/delete` — delete user by identifier (204)
+  - `GET /admin/version` ï¿½ version & deployment info
+  - `GET /admin/logs` ï¿½ list request logs (with filters)
+  - `GET /admin/logs/:id` ï¿½ get single log
+  - `POST /admin/logs/clear` ï¿½ clear logs (204)
+  - `POST /admin/users/manual` ï¿½ create manual user (admin convenience)
+  - `POST /admin/groups/manual` ï¿½ create manual group
+  - `POST /admin/users/:id/delete` ï¿½ delete user by identifier (204)
 - Backup endpoints (guarded)
-  - `GET /admin/backup/stats` — backup statistics
-  - `POST /admin/backup/trigger` — manually trigger backup
+  - `GET /admin/backup/stats` ï¿½ backup statistics
+  - `POST /admin/backup/trigger` ï¿½ manually trigger backup
 - OAuth endpoints
-  - `POST /oauth/token` — client credentials token issuance (public)
-  - `GET /oauth/test` — simple test endpoint (public)
+  - `POST /oauth/token` ï¿½ client credentials token issuance (public)
+  - `GET /oauth/test` ï¿½ simple test endpoint (public)
 - Web UI assets (public)
-  - `GET /` `GET /admin` — serve SPA
-  - `GET /assets/*` — static assets
+  - `GET /` `GET /admin` ï¿½ serve SPA
+  - `GET /assets/*` ï¿½ static assets
 
 ---
 
@@ -69,7 +70,7 @@ SCIM metadata endpoints
 
 1) GET /ServiceProviderConfig
 - Purpose: Return SCIM service provider capabilities (patch, filter, sort, auth schemes).
-- Auth: Protected (guard) — requires bearer token unless decorated public.
+- Auth: Protected (guard) ï¿½ requires bearer token unless decorated public.
 - Example:
   curl -H "Authorization: Bearer <TOKEN>" "https://<API_BASE>/scim/v2/ServiceProviderConfig"
 
@@ -85,7 +86,7 @@ SCIM metadata endpoints
 
 ---
 
-Users resource — operations and examples
+Users resource ï¿½ operations and examples
 
 1) POST /Users
 - Create SCIM User.
@@ -172,7 +173,7 @@ Notes on errors
 
 ---
 
-Groups resource — operations and examples
+Groups resource ï¿½ operations and examples
 
 1) POST /Groups
 - Create group. Body example:
@@ -318,12 +319,12 @@ curl -X POST "https://<API_BASE>/oauth/token" \
 
 Web UI (public)
 
-- `GET /` `GET /admin` serve `public/index.html` — the React SPA.
+- `GET /` `GET /admin` serve `public/index.html` ï¿½ the React SPA.
 - `GET /assets/*` serve static assets.
 
 ---
 
-Examples — error responses
+Examples ï¿½ error responses
 
 1) 401 Unauthorized (invalid token)
 - Response header: `WWW-Authenticate: Bearer realm="SCIM"`.
@@ -355,7 +356,7 @@ Persistence & models
 
 ---
 
-Appendix — Useful curl snippets
+Appendix ï¿½ Useful curl snippets
 
 - Get token and create user (combined):
 ```
