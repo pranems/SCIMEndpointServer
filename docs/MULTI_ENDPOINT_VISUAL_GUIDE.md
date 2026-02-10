@@ -151,6 +151,7 @@ Benefit: Complete isolation, easy management, independent lifecycle
 │ 4. Config Flag Tests                        │
 │    ✅ MultiOpPatchRequestAddMultipleMembersToGroup │
 │    ✅ MultiOpPatchRequestRemoveMultipleMembersFromGroup │
+│    ✅ VerbosePatchSupported (dot-notation PATCH) │
 │    ✅ Flag enabled/disabled behavior         │
 │    ✅ String/boolean value handling          │
 └─────────────────────────────────────────────┘

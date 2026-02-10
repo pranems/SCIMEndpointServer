@@ -132,8 +132,8 @@ export class EndpointScimUsersController {
     @Body() dto: PatchUserDto,
     @Req() req: Request
   ) {
-    const { baseUrl } = await this.validateAndSetContext(endpointId, req);
-    return this.usersService.patchUserForEndpoint(id, dto, baseUrl, endpointId);
+    const { baseUrl, config } = await this.validateAndSetContext(endpointId, req);
+    return this.usersService.patchUserForEndpoint(id, dto, baseUrl, endpointId, config);
   }
 
   /**

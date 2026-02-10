@@ -195,6 +195,7 @@ curl -X DELETE http://localhost:3000/scim/admin/endpoints/clx123... \
 - `getConfigBoolean()` and `getConfigString()` helpers
 - `MultiOpPatchRequestAddMultipleMembersToGroup` flag implemented
 - `MultiOpPatchRequestRemoveMultipleMembersFromGroup` flag implemented
+- `VerbosePatchSupported` flag implemented (dot-notation PATCH path resolution)
 
 ✅ **Complete (Phase 5 - Deployment)**
 - Docker build/deployment scripts ready
@@ -227,7 +228,7 @@ curl -X DELETE http://localhost:3000/scim/admin/endpoints/clx123... \
 
 5. **Validation at Controller Level**: Endpoint existence verified before passing to services - fail fast pattern
 
-6. **Config Flag Support**: Endpoints can have configuration flags to control behavior (e.g., `MultiOpPatchRequestAddMultipleMembersToGroup`, `MultiOpPatchRequestRemoveMultipleMembersFromGroup`)
+6. **Config Flag Support**: Endpoints can have configuration flags to control behavior (e.g., `MultiOpPatchRequestAddMultipleMembersToGroup`, `MultiOpPatchRequestRemoveMultipleMembersFromGroup`, `VerbosePatchSupported`)
 
 ## Performance Considerations
 

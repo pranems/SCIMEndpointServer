@@ -18,7 +18,7 @@ A complete multi-endpoint architecture for the SCIMTool API is **fully implement
 - Composite unique constraints per endpoint (e.g., `@@unique([endpointId, userName])`)
 - Cascade delete relationships (deleting endpoint removes all related data)
 - **Active flag enforcement**: Inactive endpoints (`active=false`) reject all SCIM operations with `403 Forbidden`
-- **Config flag validation**: `MultiOpPatchRequestAddMultipleMembersToGroup` and `MultiOpPatchRequestRemoveMultipleMembersFromGroup` accept only True/False values
+- **Config flag validation**: `MultiOpPatchRequestAddMultipleMembersToGroup`, `MultiOpPatchRequestRemoveMultipleMembersFromGroup`, and `VerbosePatchSupported` accept only True/False values
 
 ### 2. Endpoint Module (`src/modules/endpoint/`)
 

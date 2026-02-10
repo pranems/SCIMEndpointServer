@@ -57,6 +57,13 @@ export const ENDPOINT_CONFIG_FLAGS = {
    * Custom headers to include in responses.
    */
   CUSTOM_HEADERS: 'customHeaders',
+
+  /**
+   * When true, enables verbose PATCH support with dot-notation path resolution.
+   * Paths like "name.givenName" are resolved into nested objects instead of flat keys.
+   * When false (default), dot-notation paths are stored as literal top-level keys.
+   */
+  VERBOSE_PATCH_SUPPORTED: 'VerbosePatchSupported',
 } as const;
 
 /**
@@ -131,6 +138,15 @@ export interface EndpointConfig {
   [ENDPOINT_CONFIG_FLAGS.CUSTOM_HEADERS]?: Record<string, string>;
 
   /**
+   * When true, enables verbose PATCH support with dot-notation path resolution.
+   * Paths like "name.givenName" are resolved into nested objects instead of flat keys.
+   * When false (default), dot-notation paths are stored as literal top-level keys.
+   *
+   * Example config: { "VerbosePatchSupported": "True" }
+   */
+  [ENDPOINT_CONFIG_FLAGS.VERBOSE_PATCH_SUPPORTED]?: boolean | string;
+
+  /**
    * Allow any additional configuration flags
    */
   [key: string]: unknown;
@@ -173,7 +189,8 @@ export const DEFAULT_ENDPOINT_CONFIG: EndpointConfig = {
   [ENDPOINT_CONFIG_FLAGS.EXCLUDE_SCHEMAS]: false,
   [ENDPOINT_CONFIG_FLAGS.INCLUDE_ENTERPRISE_SCHEMA]: false,
   [ENDPOINT_CONFIG_FLAGS.STRICT_MODE]: false,
-  [ENDPOINT_CONFIG_FLAGS.LEGACY_MODE]: false
+  [ENDPOINT_CONFIG_FLAGS.LEGACY_MODE]: false,
+  [ENDPOINT_CONFIG_FLAGS.VERBOSE_PATCH_SUPPORTED]: false
 };
 
 /**
@@ -227,6 +244,26 @@ export function validateEndpointConfig(config: Record<string, any> | undefined):
       throw new Error(
         `Invalid type for config flag "${ENDPOINT_CONFIG_FLAGS.MULTI_OP_PATCH_REMOVE_MULTIPLE_MEMBERS_FROM_GROUP}". ` +
         `Expected boolean or string ("True"/"False"), got ${typeof multiOpRemoveFlag}.`
+      );
+    }
+  }
+
+  // Validate VerbosePatchSupported
+  const verbosePatchFlag = config[ENDPOINT_CONFIG_FLAGS.VERBOSE_PATCH_SUPPORTED];
+  if (verbosePatchFlag !== undefined) {
+    if (typeof verbosePatchFlag === 'boolean') {
+      // Boolean values are always valid
+    } else if (typeof verbosePatchFlag === 'string') {
+      if (!VALID_BOOLEAN_VALUES.includes(verbosePatchFlag.toLowerCase())) {
+        throw new Error(
+          `Invalid value "${verbosePatchFlag}" for config flag "${ENDPOINT_CONFIG_FLAGS.VERBOSE_PATCH_SUPPORTED}". ` +
+          `Allowed values: "True", "False", true, false, "1", "0".`
+        );
+      }
+    } else {
+      throw new Error(
+        `Invalid type for config flag "${ENDPOINT_CONFIG_FLAGS.VERBOSE_PATCH_SUPPORTED}". ` +
+        `Expected boolean or string ("True"/"False"), got ${typeof verbosePatchFlag}.`
       );
     }
   }

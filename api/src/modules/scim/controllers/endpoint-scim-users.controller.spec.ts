@@ -207,7 +207,8 @@ describe('EndpointScimUsersController', () => {
           'scim-123',
           patchDto,
           expect.any(String),
-          'endpoint-1'
+          'endpoint-1',
+          expect.any(Object)
         );
         expect(result).toEqual(mockUser);
       });

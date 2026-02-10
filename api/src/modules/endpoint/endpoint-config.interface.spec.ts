@@ -26,6 +26,7 @@ describe('endpoint-config.interface', () => {
       expect(ENDPOINT_CONFIG_FLAGS.STRICT_MODE).toBe('strictMode');
       expect(ENDPOINT_CONFIG_FLAGS.LEGACY_MODE).toBe('legacyMode');
       expect(ENDPOINT_CONFIG_FLAGS.CUSTOM_HEADERS).toBe('customHeaders');
+      expect(ENDPOINT_CONFIG_FLAGS.VERBOSE_PATCH_SUPPORTED).toBe('VerbosePatchSupported');
     });
   });
 
@@ -478,6 +479,104 @@ describe('endpoint-config.interface', () => {
       });
     });
 
+    describe('VerbosePatchSupported validation', () => {
+      it('should accept boolean true', () => {
+        expect(() =>
+          validateEndpointConfig({ VerbosePatchSupported: true })
+        ).not.toThrow();
+      });
+
+      it('should accept boolean false', () => {
+        expect(() =>
+          validateEndpointConfig({ VerbosePatchSupported: false })
+        ).not.toThrow();
+      });
+
+      it('should accept string "true"', () => {
+        expect(() =>
+          validateEndpointConfig({ VerbosePatchSupported: 'true' })
+        ).not.toThrow();
+      });
+
+      it('should accept string "True"', () => {
+        expect(() =>
+          validateEndpointConfig({ VerbosePatchSupported: 'True' })
+        ).not.toThrow();
+      });
+
+      it('should accept string "false"', () => {
+        expect(() =>
+          validateEndpointConfig({ VerbosePatchSupported: 'false' })
+        ).not.toThrow();
+      });
+
+      it('should accept string "False"', () => {
+        expect(() =>
+          validateEndpointConfig({ VerbosePatchSupported: 'False' })
+        ).not.toThrow();
+      });
+
+      it('should accept string "1"', () => {
+        expect(() =>
+          validateEndpointConfig({ VerbosePatchSupported: '1' })
+        ).not.toThrow();
+      });
+
+      it('should accept string "0"', () => {
+        expect(() =>
+          validateEndpointConfig({ VerbosePatchSupported: '0' })
+        ).not.toThrow();
+      });
+
+      it('should throw for invalid string "Yes"', () => {
+        expect(() =>
+          validateEndpointConfig({ VerbosePatchSupported: 'Yes' })
+        ).toThrow(/Invalid value/);
+      });
+
+      it('should throw for invalid string "No"', () => {
+        expect(() =>
+          validateEndpointConfig({ VerbosePatchSupported: 'No' })
+        ).toThrow(/Invalid value/);
+      });
+
+      it('should throw for number value', () => {
+        expect(() =>
+          validateEndpointConfig({ VerbosePatchSupported: 123 })
+        ).toThrow(/Invalid type/);
+      });
+
+      it('should throw for object value', () => {
+        expect(() =>
+          validateEndpointConfig({ VerbosePatchSupported: { enabled: true } })
+        ).toThrow(/Invalid type/);
+      });
+
+      it('should throw for array value', () => {
+        expect(() =>
+          validateEndpointConfig({ VerbosePatchSupported: ['true'] })
+        ).toThrow(/Invalid type/);
+      });
+
+      it('should include flag name in error message', () => {
+        try {
+          validateEndpointConfig({ VerbosePatchSupported: 'invalid' });
+          fail('Expected error');
+        } catch (e) {
+          expect((e as Error).message).toContain('VerbosePatchSupported');
+        }
+      });
+
+      it('should include allowed values in error message', () => {
+        try {
+          validateEndpointConfig({ VerbosePatchSupported: 'invalid' });
+          fail('Expected error');
+        } catch (e) {
+          expect((e as Error).message).toContain('Allowed values');
+        }
+      });
+    });
+
     it('should not validate other config flags (yet)', () => {
       // Other flags are not validated yet, so they should pass
       expect(() =>
@@ -500,6 +599,7 @@ describe('endpoint-config.interface', () => {
       expect(DEFAULT_ENDPOINT_CONFIG[ENDPOINT_CONFIG_FLAGS.INCLUDE_ENTERPRISE_SCHEMA]).toBe(false);
       expect(DEFAULT_ENDPOINT_CONFIG[ENDPOINT_CONFIG_FLAGS.STRICT_MODE]).toBe(false);
       expect(DEFAULT_ENDPOINT_CONFIG[ENDPOINT_CONFIG_FLAGS.LEGACY_MODE]).toBe(false);
+      expect(DEFAULT_ENDPOINT_CONFIG[ENDPOINT_CONFIG_FLAGS.VERBOSE_PATCH_SUPPORTED]).toBe(false);
     });
   });
 });

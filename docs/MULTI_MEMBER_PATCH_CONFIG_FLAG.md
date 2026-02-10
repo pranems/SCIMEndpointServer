@@ -15,6 +15,7 @@ These config flags control whether a single PATCH operation can add or remove mu
 |-----------|----------|
 | `MultiOpPatchRequestAddMultipleMembersToGroup` | Controls multi-member **add** operations |
 | `MultiOpPatchRequestRemoveMultipleMembersFromGroup` | Controls multi-member **remove** operations |
+| `VerbosePatchSupported` | Enables dot-notation path resolution in PATCH (e.g., `name.givenName`) |
 
 ### Flag Values
 

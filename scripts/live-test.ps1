@@ -150,6 +150,30 @@ $bothResult = Invoke-RestMethod -Uri "$baseUrl/scim/admin/endpoints/$EndpointId"
 $bothValid = ($bothResult.config.MultiOpPatchRequestAddMultipleMembersToGroup -eq "True") -and ($bothResult.config.MultiOpPatchRequestRemoveMultipleMembersFromGroup -eq "True")
 Test-Result -Success $bothValid -Message "Both add and remove config flags set together"
 
+# Test: Invalid VerbosePatchSupported config value rejected
+Write-Host "`n--- Test: Invalid VerbosePatchSupported Config Value Rejected ---" -ForegroundColor Cyan
+$invalidVerboseBody = '{"config":{"VerbosePatchSupported":"Yes"}}'
+try {
+    $result = Invoke-RestMethod -Uri "$baseUrl/scim/admin/endpoints/$EndpointId" -Method PATCH -Headers $headers -Body $invalidVerboseBody
+    Test-Result -Success $false -Message "Invalid VerbosePatchSupported 'Yes' should be rejected"
+} catch {
+    $statusCode = $_.Exception.Response.StatusCode.value__
+    Test-Result -Success ($statusCode -eq 400) -Message "Invalid VerbosePatchSupported 'Yes' rejected with 400 Bad Request"
+}
+
+# Test: Valid VerbosePatchSupported config value accepted
+Write-Host "`n--- Test: Valid VerbosePatchSupported Config Value Accepted ---" -ForegroundColor Cyan
+$validVerboseBody = '{"config":{"VerbosePatchSupported":true}}'
+$validVerboseResult = Invoke-RestMethod -Uri "$baseUrl/scim/admin/endpoints/$EndpointId" -Method PATCH -Headers $headers -Body $validVerboseBody
+Test-Result -Success ($true) -Message "VerbosePatchSupported boolean true accepted"
+
+# Test: All three flags can be set together
+Write-Host "`n--- Test: All Three Config Flags Set Together ---" -ForegroundColor Cyan
+$allFlagsBody = '{"config":{"MultiOpPatchRequestAddMultipleMembersToGroup":"True","MultiOpPatchRequestRemoveMultipleMembersFromGroup":"True","VerbosePatchSupported":true}}'
+$allResult = Invoke-RestMethod -Uri "$baseUrl/scim/admin/endpoints/$EndpointId" -Method PATCH -Headers $headers -Body $allFlagsBody
+$allValid = ($allResult.config.MultiOpPatchRequestAddMultipleMembersToGroup -eq "True") -and ($allResult.config.MultiOpPatchRequestRemoveMultipleMembersFromGroup -eq "True") -and ($allResult.config.VerbosePatchSupported -eq $true)
+Test-Result -Success $allValid -Message "All three config flags set together"
+
 # ============================================
 # TEST SECTION 3: SCIM USER OPERATIONS
 # ============================================

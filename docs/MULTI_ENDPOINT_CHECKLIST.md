@@ -94,6 +94,7 @@
 - [x] `getConfigBoolean()` and `getConfigString()` helper functions
 - [x] Config passed directly from controller to service (not via AsyncLocalStorage)
 - [x] `MultiOpPatchRequestAddMultipleMembersToGroup` flag implemented and tested
+- [x] `VerbosePatchSupported` flag implemented and tested (dot-notation PATCH path resolution)
 
 ### ScimMetadataService - Multi-Endpoint Compatibility ✅
 
@@ -347,6 +348,12 @@ The multi-endpoint system now supports **endpoint-specific configuration flags**
 - Default: `false` (one member per add operation for Azure AD compatibility)
 - When `true`: Allows adding multiple members in a single operation
 - Full documentation: See `MULTI_MEMBER_PATCH_CONFIG_FLAG.md`
+
+### Key Config Flag: `VerbosePatchSupported`
+- Controls whether PATCH operations resolve dot-notation paths into nested objects
+- Default: `false` (dot-notation paths stored as literal flat keys)
+- When `true`: Paths like `name.givenName` navigate into the nested `name` object
+- Enables SCIM Validator compliance for verbose PATCH replace operations
 
 ## Notes
 

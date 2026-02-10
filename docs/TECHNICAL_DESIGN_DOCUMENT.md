@@ -334,6 +334,7 @@ const config = ctx?.config;
 - `MultiOpPatchRequestAddMultipleMembersToGroup` — Whether to accept array of members in a single add operation
 - `MultiOpPatchRequestRemoveMultipleMembersFromGroup` — Whether to accept array of member removes
 - `PatchOpAllowRemoveAllMembers` — Whether `remove` with no filter removes all group members
+- `VerbosePatchSupported` — Enables dot-notation path resolution in PATCH operations (e.g., `name.givenName` navigates into nested `name` object)
 
 **Member Management**:
 - `GroupMember` records linked by `groupId` + `userId` (nullable for unresolved references)
@@ -789,6 +790,7 @@ CMD ["node", "dist/main.js"]
 | `MultiOpPatchRequestAddMultipleMembersToGroup` | boolean | false | Allow multi-member add in single PATCH |
 | `MultiOpPatchRequestRemoveMultipleMembersFromGroup` | boolean | false | Allow multi-member remove in single PATCH |
 | `PatchOpAllowRemoveAllMembers` | boolean | false | Allow remove-all-members operation |
+| `VerbosePatchSupported` | boolean | false | Enable dot-notation path resolution in PATCH (e.g., `name.givenName`) |
 | `excludeMeta` | boolean | false | Omit meta from responses |
 | `excludeSchemas` | boolean | false | Omit schemas from responses |
 | `customSchemaUrn` | string | — | Custom schema URN to advertise |

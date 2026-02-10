@@ -15,6 +15,8 @@ import type { ScimListResponse, ScimUserResource } from '../common/scim-types';
 import type { CreateUserDto } from '../dto/create-user.dto';
 import type { PatchUserDto } from '../dto/patch-user.dto';
 import { ScimMetadataService } from './scim-metadata.service';
+import type { EndpointConfig } from '../../endpoint/endpoint-config.interface';
+import { ENDPOINT_CONFIG_FLAGS, getConfigBoolean } from '../../endpoint/endpoint-config.interface';
 import {
   isValuePath,
   parseValuePath,
@@ -136,7 +138,8 @@ export class EndpointScimUsersService {
     scimId: string,
     patchDto: PatchUserDto,
     baseUrl: string,
-    endpointId: string
+    endpointId: string,
+    config?: EndpointConfig
   ): Promise<ScimUserResource> {
     this.ensureSchema(patchDto.schemas, SCIM_PATCH_SCHEMA);
 
@@ -151,7 +154,7 @@ export class EndpointScimUsersService {
       throw createScimError({ status: 404, scimType: 'noTarget', detail: `Resource ${scimId} not found.` });
     }
 
-    const updatedData = await this.applyPatchOperationsForEndpoint(user, patchDto, endpointId);
+    const updatedData = await this.applyPatchOperationsForEndpoint(user, patchDto, endpointId, config);
 
     const updatedUser = await this.prisma.scimUser.update({
       where: { id: user.id },
@@ -317,8 +320,10 @@ export class EndpointScimUsersService {
   private async applyPatchOperationsForEndpoint(
     user: ScimUser,
     patchDto: PatchUserDto,
-    endpointId: string
+    endpointId: string,
+    config?: EndpointConfig
   ): Promise<Prisma.ScimUserUpdateInput> {
+    const verbosePatch = getConfigBoolean(config, ENDPOINT_CONFIG_FLAGS.VERBOSE_PATCH_SUPPORTED);
     let active = user.active;
     let userName = user.userName;
     let externalId: string | null = user.externalId ?? null;
@@ -364,6 +369,21 @@ export class EndpointScimUsersService {
               rawPayload = applyValuePathUpdate(rawPayload, vpParsed, operation.value);
             }
           }
+        } else if (verbosePatch && originalPath && originalPath.includes('.')) {
+          // Dot-notation path: name.givenName → navigate into nested object
+          const dotIndex = originalPath.indexOf('.');
+          const parentAttr = originalPath.substring(0, dotIndex);
+          const childAttr = originalPath.substring(dotIndex + 1);
+          // Case-insensitive parent lookup (RFC 7643 §2.1)
+          const parentKey = Object.keys(rawPayload).find(
+            k => k.toLowerCase() === parentAttr.toLowerCase()
+          ) ?? parentAttr;
+          const existing = rawPayload[parentKey];
+          if (typeof existing === 'object' && existing !== null && !Array.isArray(existing)) {
+            (existing as Record<string, unknown>)[childAttr] = operation.value;
+          } else {
+            rawPayload[parentKey] = { [childAttr]: operation.value };
+          }
         } else if (originalPath) {
           rawPayload = { ...rawPayload, [originalPath]: operation.value };
         } else if (!path && typeof operation.value === 'object' && operation.value !== null) {
@@ -400,6 +420,18 @@ export class EndpointScimUsersService {
           const vpParsed = parseValuePath(originalPath);
           if (vpParsed) {
             rawPayload = removeValuePathEntry(rawPayload, vpParsed);
+          }
+        } else if (verbosePatch && originalPath && originalPath.includes('.')) {
+          // Dot-notation remove: name.givenName → remove from nested object
+          const dotIndex = originalPath.indexOf('.');
+          const parentAttr = originalPath.substring(0, dotIndex);
+          const childAttr = originalPath.substring(dotIndex + 1);
+          const parentKey = Object.keys(rawPayload).find(
+            k => k.toLowerCase() === parentAttr.toLowerCase()
+          ) ?? parentAttr;
+          const existing = rawPayload[parentKey];
+          if (typeof existing === 'object' && existing !== null && !Array.isArray(existing)) {
+            delete (existing as Record<string, unknown>)[childAttr];
           }
         } else if (originalPath) {
           rawPayload = this.removeAttribute(rawPayload, originalPath);

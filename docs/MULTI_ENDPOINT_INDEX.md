@@ -63,6 +63,7 @@ This folder contains complete documentation for implementing Multi-Endpoint supp
 👉 Read this: [MULTI_MEMBER_PATCH_CONFIG_FLAG.md](MULTI_MEMBER_PATCH_CONFIG_FLAG.md)
 - MultiOpPatchRequestAddMultipleMembersToGroup flag
 - MultiOpPatchRequestRemoveMultipleMembersFromGroup flag
+- VerbosePatchSupported flag (dot-notation PATCH)
 - Usage examples
 - Azure AD compatibility
 
@@ -418,6 +419,7 @@ curl -X POST http://localhost:3000/scim/admin/endpoints \
 | Flag | Default | Description |
 |------|---------|-------------|
 | `MultiOpPatchRequestAddMultipleMembersToGroup` | `false` | Allow adding multiple members in one PATCH operation |
+| `VerbosePatchSupported` | `false` | Enable dot-notation path resolution in PATCH (e.g., `name.givenName`) |
 | `excludeMeta` | `false` | Exclude `meta` attribute from responses |
 | `excludeSchemas` | `false` | Exclude `schemas` attribute from responses |
 | `customSchemaUrn` | - | Custom schema URN prefix |

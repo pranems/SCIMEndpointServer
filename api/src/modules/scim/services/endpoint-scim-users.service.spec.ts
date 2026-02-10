@@ -5,6 +5,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { ScimMetadataService } from './scim-metadata.service';
 import type { CreateUserDto } from '../dto/create-user.dto';
 import type { PatchUserDto } from '../dto/patch-user.dto';
+import { ENDPOINT_CONFIG_FLAGS, type EndpointConfig } from '../../endpoint/endpoint-config.interface';
 
 describe('EndpointScimUsersService', () => {
   let service: EndpointScimUsersService;
@@ -844,6 +845,258 @@ describe('EndpointScimUsersService', () => {
       expect(storedPayload.displayName).toBe('Kept Display Name');
       // userName should be stripped from rawPayload since it's a DB column
       expect(storedPayload.userName).toBeUndefined();
+    });
+
+    describe('dot-notation path resolution', () => {
+      const verboseConfig: EndpointConfig = {
+        [ENDPOINT_CONFIG_FLAGS.VERBOSE_PATCH_SUPPORTED]: true,
+      };
+
+      it('should resolve name.givenName to nested name object on replace when VerbosePatchSupported is enabled', async () => {
+        const patchDto: PatchUserDto = {
+          schemas: ['urn:ietf:params:scim:api:messages:2.0:PatchOp'],
+          Operations: [
+            { op: 'replace', path: 'name.givenName', value: 'Lysanne' },
+            { op: 'replace', path: 'name.familyName', value: 'Linwood' },
+          ],
+        };
+
+        const userWithName = {
+          ...mockUser,
+          rawPayload: JSON.stringify({
+            displayName: 'Test User',
+            name: { givenName: 'Ruthe', familyName: 'Xander' },
+          }),
+        };
+
+        mockPrismaService.scimUser.findFirst
+          .mockResolvedValueOnce(userWithName)
+          .mockResolvedValueOnce(null);
+
+        mockPrismaService.scimUser.update.mockImplementation(async ({ data }: any) => ({
+          ...userWithName,
+          rawPayload: data.rawPayload,
+        }));
+
+        await service.patchUserForEndpoint(
+          mockUser.scimId,
+          patchDto,
+          'http://localhost:3000/scim',
+          mockEndpoint.id,
+          verboseConfig
+        );
+
+        const updateCall = mockPrismaService.scimUser.update.mock.calls[0][0];
+        const storedPayload = JSON.parse(updateCall.data.rawPayload);
+        expect(storedPayload.name).toBeDefined();
+        expect(storedPayload.name.givenName).toBe('Lysanne');
+        expect(storedPayload.name.familyName).toBe('Linwood');
+        // Should NOT create flat keys
+        expect(storedPayload['name.givenName']).toBeUndefined();
+        expect(storedPayload['name.familyName']).toBeUndefined();
+      });
+
+      it('should store dot-notation as flat keys when VerbosePatchSupported is disabled', async () => {
+        const patchDto: PatchUserDto = {
+          schemas: ['urn:ietf:params:scim:api:messages:2.0:PatchOp'],
+          Operations: [
+            { op: 'replace', path: 'name.givenName', value: 'Lysanne' },
+          ],
+        };
+
+        const userWithName = {
+          ...mockUser,
+          rawPayload: JSON.stringify({
+            displayName: 'Test User',
+            name: { givenName: 'Ruthe', familyName: 'Xander' },
+          }),
+        };
+
+        mockPrismaService.scimUser.findFirst
+          .mockResolvedValueOnce(userWithName)
+          .mockResolvedValueOnce(null);
+
+        mockPrismaService.scimUser.update.mockImplementation(async ({ data }: any) => ({
+          ...userWithName,
+          rawPayload: data.rawPayload,
+        }));
+
+        // No config (flag defaults to false)
+        await service.patchUserForEndpoint(
+          mockUser.scimId,
+          patchDto,
+          'http://localhost:3000/scim',
+          mockEndpoint.id
+        );
+
+        const updateCall = mockPrismaService.scimUser.update.mock.calls[0][0];
+        const storedPayload = JSON.parse(updateCall.data.rawPayload);
+        // Without the flag, dot-notation is stored as a flat key
+        expect(storedPayload['name.givenName']).toBe('Lysanne');
+        // Original name object should remain unchanged
+        expect(storedPayload.name.givenName).toBe('Ruthe');
+      });
+
+      it('should create nested object when parent does not exist', async () => {
+        const patchDto: PatchUserDto = {
+          schemas: ['urn:ietf:params:scim:api:messages:2.0:PatchOp'],
+          Operations: [
+            { op: 'add', path: 'name.givenName', value: 'Alice' },
+          ],
+        };
+
+        const userNoName = {
+          ...mockUser,
+          rawPayload: JSON.stringify({ displayName: 'Test User' }),
+        };
+
+        mockPrismaService.scimUser.findFirst
+          .mockResolvedValueOnce(userNoName)
+          .mockResolvedValueOnce(null);
+
+        mockPrismaService.scimUser.update.mockImplementation(async ({ data }: any) => ({
+          ...userNoName,
+          rawPayload: data.rawPayload,
+        }));
+
+        await service.patchUserForEndpoint(
+          mockUser.scimId,
+          patchDto,
+          'http://localhost:3000/scim',
+          mockEndpoint.id,
+          verboseConfig
+        );
+
+        const updateCall = mockPrismaService.scimUser.update.mock.calls[0][0];
+        const storedPayload = JSON.parse(updateCall.data.rawPayload);
+        expect(storedPayload.name).toEqual({ givenName: 'Alice' });
+      });
+
+      it('should not clobber sibling sub-attributes when updating dot-notation', async () => {
+        const patchDto: PatchUserDto = {
+          schemas: ['urn:ietf:params:scim:api:messages:2.0:PatchOp'],
+          Operations: [
+            { op: 'replace', path: 'name.givenName', value: 'Updated' },
+          ],
+        };
+
+        const userWithFullName = {
+          ...mockUser,
+          rawPayload: JSON.stringify({
+            name: { givenName: 'Old', familyName: 'Keep', formatted: 'Keep This' },
+          }),
+        };
+
+        mockPrismaService.scimUser.findFirst
+          .mockResolvedValueOnce(userWithFullName)
+          .mockResolvedValueOnce(null);
+
+        mockPrismaService.scimUser.update.mockImplementation(async ({ data }: any) => ({
+          ...userWithFullName,
+          rawPayload: data.rawPayload,
+        }));
+
+        await service.patchUserForEndpoint(
+          mockUser.scimId,
+          patchDto,
+          'http://localhost:3000/scim',
+          mockEndpoint.id,
+          verboseConfig
+        );
+
+        const updateCall = mockPrismaService.scimUser.update.mock.calls[0][0];
+        const storedPayload = JSON.parse(updateCall.data.rawPayload);
+        expect(storedPayload.name.givenName).toBe('Updated');
+        expect(storedPayload.name.familyName).toBe('Keep');
+        expect(storedPayload.name.formatted).toBe('Keep This');
+      });
+
+      it('should remove dot-notation sub-attribute', async () => {
+        const patchDto: PatchUserDto = {
+          schemas: ['urn:ietf:params:scim:api:messages:2.0:PatchOp'],
+          Operations: [
+            { op: 'remove', path: 'name.middleName' },
+          ],
+        };
+
+        const userWithMiddleName = {
+          ...mockUser,
+          rawPayload: JSON.stringify({
+            name: { givenName: 'Alice', familyName: 'Smith', middleName: 'M' },
+          }),
+        };
+
+        mockPrismaService.scimUser.findFirst
+          .mockResolvedValueOnce(userWithMiddleName)
+          .mockResolvedValueOnce(null);
+
+        mockPrismaService.scimUser.update.mockImplementation(async ({ data }: any) => ({
+          ...userWithMiddleName,
+          rawPayload: data.rawPayload,
+        }));
+
+        await service.patchUserForEndpoint(
+          mockUser.scimId,
+          patchDto,
+          'http://localhost:3000/scim',
+          mockEndpoint.id,
+          verboseConfig
+        );
+
+        const updateCall = mockPrismaService.scimUser.update.mock.calls[0][0];
+        const storedPayload = JSON.parse(updateCall.data.rawPayload);
+        expect(storedPayload.name.givenName).toBe('Alice');
+        expect(storedPayload.name.familyName).toBe('Smith');
+        expect(storedPayload.name.middleName).toBeUndefined();
+      });
+
+      it('should handle verbose replace with all name sub-attributes', async () => {
+        const patchDto: PatchUserDto = {
+          schemas: ['urn:ietf:params:scim:api:messages:2.0:PatchOp'],
+          Operations: [
+            { op: 'replace', path: 'name.givenName', value: 'Lysanne' },
+            { op: 'replace', path: 'name.familyName', value: 'Linwood' },
+            { op: 'replace', path: 'name.formatted', value: 'Cristopher' },
+            { op: 'replace', path: 'name.middleName', value: 'Margot' },
+            { op: 'replace', path: 'name.honorificPrefix', value: 'Camryn' },
+            { op: 'replace', path: 'name.honorificSuffix', value: 'Ashtyn' },
+          ],
+        };
+
+        const userWithName = {
+          ...mockUser,
+          rawPayload: JSON.stringify({
+            displayName: 'Test User',
+            name: { givenName: 'Old', familyName: 'Old' },
+          }),
+        };
+
+        mockPrismaService.scimUser.findFirst
+          .mockResolvedValueOnce(userWithName)
+          .mockResolvedValueOnce(null);
+
+        mockPrismaService.scimUser.update.mockImplementation(async ({ data }: any) => ({
+          ...userWithName,
+          rawPayload: data.rawPayload,
+        }));
+
+        await service.patchUserForEndpoint(
+          mockUser.scimId,
+          patchDto,
+          'http://localhost:3000/scim',
+          mockEndpoint.id,
+          verboseConfig
+        );
+
+        const updateCall = mockPrismaService.scimUser.update.mock.calls[0][0];
+        const storedPayload = JSON.parse(updateCall.data.rawPayload);
+        expect(storedPayload.name.givenName).toBe('Lysanne');
+        expect(storedPayload.name.familyName).toBe('Linwood');
+        expect(storedPayload.name.formatted).toBe('Cristopher');
+        expect(storedPayload.name.middleName).toBe('Margot');
+        expect(storedPayload.name.honorificPrefix).toBe('Camryn');
+        expect(storedPayload.name.honorificSuffix).toBe('Ashtyn');
+      });
     });
   });
 

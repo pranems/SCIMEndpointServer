@@ -917,6 +917,7 @@ Configuration flags control endpoint-specific behavior.
 |------|------|---------|-------------|
 | `MultiOpPatchRequestAddMultipleMembersToGroup` | string/boolean | `false` | Allow adding multiple members in single PATCH operation |
 | `MultiOpPatchRequestRemoveMultipleMembersFromGroup` | string/boolean | `false` | Allow removing multiple members in single PATCH operation |
+| `VerbosePatchSupported` | string/boolean | `false` | Enable dot-notation path resolution in PATCH (e.g., `name.givenName`) |
 | `excludeMeta` | boolean | `false` | Exclude `meta` attribute from responses |
 | `excludeSchemas` | boolean | `false` | Exclude `schemas` attribute from responses |
 | `customSchemaUrn` | string | - | Custom schema URN prefix |
@@ -935,6 +936,7 @@ curl -X POST http://localhost:3000/scim/admin/endpoints \
     "config": {
       "MultiOpPatchRequestAddMultipleMembersToGroup": "true",
       "MultiOpPatchRequestRemoveMultipleMembersFromGroup": "true",
+      "VerbosePatchSupported": true,
       "strictMode": true
     }
   }'
