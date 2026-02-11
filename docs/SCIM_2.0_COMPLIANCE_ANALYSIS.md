@@ -42,7 +42,7 @@ This document compares the current SCIMTool implementation with the SCIM 2.0 spe
 | Feature | Status | Notes |
 |---------|--------|-------|
 | Request `Content-Type` | ✅ | Accepts `application/scim+json` and `application/json` |
-| Response `Content-Type` | ✅ | Returns `application/scim+json; charset=utf-8` via `ScimContentTypeInterceptor` |
+| Response `Content-Type` | ✅ | Returns `application/scim+json; charset=utf-8` via `ScimContentTypeInterceptor` (success) + `ScimExceptionFilter` (errors) |
 
 ### 4. PATCH Operations (RFC 7644 §3.5.2)
 
@@ -54,7 +54,9 @@ This document compares the current SCIMTool implementation with the SCIM 2.0 spe
 | PatchOp schema | ✅ | Uses `urn:ietf:params:scim:api:messages:2.0:PatchOp` |
 | ValuePath filters | ✅ | `emails[type eq "work"].value` resolved and updated in-place |
 | Enterprise extension URN | ✅ | `urn:...:enterprise:2.0:User:manager` → nested object update |
+| Empty-value removal | ✅ | `replace` with `{"value":""}` or `null` removes the attribute (RFC 7644 §3.5.2.3) |
 | No-path replace (object value) | ✅ | Dot-notation keys and extension URN keys resolved into nested structures |
+| Group PATCH response body | ✅ | Returns `200 OK` with updated Group resource (matches User PATCH behavior) |
 | Boolean coercion | ✅ | `roles[].primary` string `"True"`/`"False"` → boolean `true`/`false` |
 
 ### 5. List Response (RFC 7644 §3.4.2)
@@ -72,9 +74,10 @@ This document compares the current SCIMTool implementation with the SCIM 2.0 spe
 | Feature | Status | Notes |
 |---------|--------|-------|
 | Error schema | ✅ | Uses `urn:ietf:params:scim:api:messages:2.0:Error` |
-| `status` | ✅ | HTTP status code |
+| `status` | ✅ | HTTP status code **as string** per RFC 7644 §3.12 (via `createScimError` + `ScimExceptionFilter`) |
 | `detail` | ✅ | Human-readable message |
 | `scimType` | ✅ | Optional SCIM error type |
+| Error `Content-Type` | ✅ | `application/scim+json; charset=utf-8` via `ScimExceptionFilter` |
 
 ### 7. Discovery Endpoints (RFC 7644 §4)
 
@@ -239,7 +242,8 @@ The implementation passes all 25 Microsoft SCIM Validator tests including 7 prev
 | `endpoint-scim-users.service.ts` | User CRUD with endpoint isolation, in-code case-insensitive filtering, boolean sanitization |
 | `endpoint-scim-groups.service.ts` | Group CRUD with endpoint isolation, displayName uniqueness, stale rawPayload fix |
 | `scim-patch-path.ts` | SCIM PATCH path utilities: valuePath parsing, extension URN resolution, `addValuePathEntry()`, `resolveNoPathValue()` |
-| `scim-content-type.interceptor.ts` | Sets `Content-Type: application/scim+json` on all responses (RFC 7644 §3.1) |
+| `scim-content-type.interceptor.ts` | Sets `Content-Type: application/scim+json` on success responses (RFC 7644 §3.1) |
+| `scim-exception.filter.ts` | Sets `Content-Type: application/scim+json` on error responses + ensures string `status` (RFC 7644 §3.12) |
 | `scim-constants.ts` | SCIM schema URNs and constants |
 | `scim-errors.ts` | SCIM error response format |
 | `scim-types.ts` | TypeScript interfaces for SCIM resources |

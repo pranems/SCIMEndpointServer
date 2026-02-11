@@ -153,7 +153,7 @@ export class EndpointScimGroupsService {
     };
   }
 
-  async patchGroupForEndpoint(scimId: string, dto: PatchGroupDto, endpointId: string, config?: EndpointConfig): Promise<void> {
+  async patchGroupForEndpoint(scimId: string, dto: PatchGroupDto, baseUrl: string, endpointId: string, config?: EndpointConfig): Promise<ScimGroupResource> {
     this.ensureSchema(dto.schemas, SCIM_PATCH_SCHEMA);
 
     const group = await this.getGroupWithMembersForEndpoint(scimId, endpointId);
@@ -217,6 +217,14 @@ export class EndpointScimGroupsService {
         await tx.groupMember.createMany({ data });
       }
     });
+
+    // RFC 7644 §3.5.2: Return the updated resource with 200 OK
+    const updatedGroup = await this.getGroupWithMembersForEndpoint(scimId, endpointId);
+    if (!updatedGroup) {
+      throw createScimError({ status: 500, detail: 'Failed to retrieve updated group.' });
+    }
+
+    return this.toScimGroupResource(updatedGroup, baseUrl);
   }
 
   async replaceGroupForEndpoint(

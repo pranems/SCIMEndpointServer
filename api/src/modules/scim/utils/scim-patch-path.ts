@@ -298,6 +298,16 @@ export function applyExtensionUpdate(
 ): Record<string, unknown> {
   const ext = (rawPayload[parsed.schemaUrn] as Record<string, unknown>) ?? {};
 
+  // RFC 7644 §3.5.2.3: If the target attribute value is set to the attribute's
+  // default or an empty value, the attribute SHALL be removed from the resource.
+  // Detect "empty" values: null, undefined, "", or an object whose only key is
+  // "value" set to null / "".
+  if (isEmptyScimValue(value)) {
+    delete ext[parsed.attributePath];
+    rawPayload[parsed.schemaUrn] = { ...ext };
+    return rawPayload;
+  }
+
   // Complex attributes like 'manager' should be stored as objects.
   // When a string value is provided, wrap it as {value: string} per SCIM spec
   // (manager is a complex attribute with a 'value' sub-attribute).
@@ -309,6 +319,35 @@ export function applyExtensionUpdate(
 
   rawPayload[parsed.schemaUrn] = { ...ext };
   return rawPayload;
+}
+
+/**
+ * Determines whether a SCIM PATCH value represents an "empty" or "unset" intent.
+ *
+ * Per RFC 7644 §3.5.2.3 — "replace":
+ *   If the target location specifies a single-valued attribute, the attribute's
+ *   value is replaced.  If the target location specifies a multi-valued attribute
+ *   and a value selection filter ("valuePath"), the selected values are replaced.
+ *   If the value is set to the attribute's default or an empty value, the attribute
+ *   SHALL be removed from the resource.
+ *
+ * Empty values include:
+ *   - null or undefined
+ *   - empty string ""
+ *   - object with a single "value" key set to null or ""  (e.g. `{"value":""}`)
+ */
+function isEmptyScimValue(value: unknown): boolean {
+  if (value === null || value === undefined || value === '') {
+    return true;
+  }
+  if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+    const obj = value as Record<string, unknown>;
+    const keys = Object.keys(obj);
+    if (keys.length === 1 && keys[0] === 'value') {
+      return obj.value === null || obj.value === undefined || obj.value === '';
+    }
+  }
+  return false;
 }
 
 /**

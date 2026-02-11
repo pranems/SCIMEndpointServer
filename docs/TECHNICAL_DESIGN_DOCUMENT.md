@@ -127,7 +127,8 @@ AppModule
 │   ├── EndpointScimGroupsService
 │   ├── ScimMetadataService
 │   ├── EndpointContextStorage
-│   └── ScimContentTypeInterceptor (APP_INTERCEPTOR)
+│   ├── ScimContentTypeInterceptor (APP_INTERCEPTOR)
+│   └── ScimExceptionFilter (APP_FILTER)
 ├── EndpointModule
 │   ├── EndpointController
 │   └── EndpointService
@@ -190,6 +191,10 @@ RequestLoggingInterceptor (global APP_INTERCEPTOR)
   ▼
 ScimContentTypeInterceptor (global APP_INTERCEPTOR)
   │  └── After handler: set Content-Type: application/scim+json; charset=utf-8
+  │
+  ▼
+ScimExceptionFilter (global APP_FILTER)
+  │  └── On error: set Content-Type: application/scim+json, ensure string "status"
   │
   ▼
 Controller Method (route-matched)

@@ -192,6 +192,7 @@ describe('EndpointScimGroupsController', () => {
         expect(mockGroupsService.patchGroupForEndpoint).toHaveBeenCalledWith(
           'scim-grp-123',
           patchDto,
+          expect.any(String),
           'endpoint-1',
           mockEndpoint.config
         );

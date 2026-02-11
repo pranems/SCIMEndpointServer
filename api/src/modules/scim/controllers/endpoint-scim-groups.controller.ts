@@ -147,8 +147,8 @@ export class EndpointScimGroupsController {
     @Body() dto: PatchGroupDto,
     @Req() req: Request
   ) {
-    const { config } = await this.validateAndSetContext(endpointId, req);
-    return this.groupsService.patchGroupForEndpoint(id, dto, endpointId, config);
+    const { baseUrl, config } = await this.validateAndSetContext(endpointId, req);
+    return this.groupsService.patchGroupForEndpoint(id, dto, baseUrl, endpointId, config);
   }
 
   /**

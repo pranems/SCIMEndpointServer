@@ -15,7 +15,7 @@ Authentication
 
 Content type
 - **Request:** Use `Content-Type: application/scim+json` or `application/json` for SCIM resource create/replace/patch operations.
-- **Response:** All SCIM endpoints return `Content-Type: application/scim+json; charset=utf-8` as required by [RFC 7644 §3.1](https://datatracker.ietf.org/doc/html/rfc7644#section-3.1). This is enforced globally via the `ScimContentTypeInterceptor`.
+- **Response:** All SCIM endpoints return `Content-Type: application/scim+json; charset=utf-8` as required by [RFC 7644 §3.1](https://datatracker.ietf.org/doc/html/rfc7644#section-3.1). Success responses are handled by the `ScimContentTypeInterceptor`; error responses are handled by the `ScimExceptionFilter`, which also ensures the `status` field is a string per RFC 7644 §3.12.
 
 Common response codes
 - 200 OK � successful retrieval or update (sometimes 204 for operations that return no content).
@@ -44,7 +44,7 @@ Contents
   - `GET /Groups` � list / filter
   - `GET /Groups/:id` � get by id
   - `PUT /Groups/:id` � replace
-  - `PATCH /Groups/:id` � patch (controller returns 204)
+  - `PATCH /Groups/:id` — patch (returns 200 OK with updated group resource)
   - `DELETE /Groups/:id` � delete
 - Admin endpoints (`/admin`)
   - `GET /admin/version` � version & deployment info
@@ -206,7 +206,7 @@ curl -H "Authorization: Bearer <TOKEN>" "https://<API_BASE>/scim/v2/Groups?start
 - Replace group resource.
 
 5) PATCH /Groups/:id
-- SCIM Patch semantics for group membership; controller returns 204.
+- SCIM Patch semantics for group membership; returns 200 OK with the updated Group resource body.
 
 6) DELETE /Groups/:id
 - Remove group.
@@ -333,7 +333,7 @@ Examples � error responses
 {
   "schemas":["urn:ietf:params:scim:api:messages:2.0:Error"],
   "detail":"Invalid bearer token.",
-  "status":401
+  "status":"401"
 }
 ```
 
@@ -343,7 +343,7 @@ Examples � error responses
 {
   "schemas":["urn:ietf:params:scim:api:messages:2.0:Error"],
   "detail":"User with userName already exists",
-  "status":409,
+  "status":"409",
   "scimType":"uniqueness"
 }
 ```

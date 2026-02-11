@@ -569,6 +569,49 @@ describe('EndpointScimUsersService', () => {
       expect(storedPayload[URN].manager).toEqual({ value: 'NEW-MGR' });
     });
 
+    it('should remove manager when replace sends empty value {"value":""}  (RFC 7644 §3.5.2.3)', async () => {
+      const URN = 'urn:ietf:params:scim:schemas:extension:enterprise:2.0:User';
+      const userWithManager = {
+        ...mockUser,
+        rawPayload: JSON.stringify({
+          displayName: 'Test User',
+          [URN]: { manager: { value: 'OLD-MGR' }, department: 'Eng' },
+        }),
+      };
+
+      const patchDto: PatchUserDto = {
+        schemas: ['urn:ietf:params:scim:api:messages:2.0:PatchOp'],
+        Operations: [
+          {
+            op: 'replace',
+            path: `${URN}:manager`,
+            value: { value: '' },
+          },
+        ],
+      };
+
+      mockPrismaService.scimUser.findFirst
+        .mockResolvedValueOnce(userWithManager)
+        .mockResolvedValueOnce(null);
+
+      mockPrismaService.scimUser.update.mockImplementation(async ({ data }: any) => ({
+        ...userWithManager,
+        rawPayload: data.rawPayload,
+      }));
+
+      await service.patchUserForEndpoint(
+        mockUser.scimId,
+        patchDto,
+        'http://localhost:3000/scim',
+        mockEndpoint.id
+      );
+
+      const updateCall = mockPrismaService.scimUser.update.mock.calls[0][0];
+      const storedPayload = JSON.parse(updateCall.data.rawPayload);
+      expect(storedPayload[URN].manager).toBeUndefined();
+      expect(storedPayload[URN].department).toBe('Eng');
+    });
+
     it('should remove valuePath entry via PATCH remove', async () => {
       const userWithEmails = {
         ...mockUser,

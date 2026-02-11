@@ -425,6 +425,58 @@ describe('scim-patch-path utilities', () => {
       const result = applyExtensionUpdate(payload, parsed, 'Finance');
       expect((result[URN] as Record<string, unknown>).department).toBe('Finance');
     });
+
+    // ─── RFC 7644 §3.5.2.3: Empty value removal ───────────────────────
+
+    it('should remove attribute when value is {"value":""}  (RFC 7644 §3.5.2.3)', () => {
+      const payload: Record<string, unknown> = {
+        [URN]: { manager: { value: 'OLD-MGR' }, department: 'Eng' },
+      };
+      const parsed = parseExtensionPath(`${URN}:manager`)!;
+      const result = applyExtensionUpdate(payload, parsed, { value: '' });
+      const ext = result[URN] as Record<string, unknown>;
+      expect(ext.manager).toBeUndefined();
+      expect(ext.department).toBe('Eng');
+    });
+
+    it('should remove attribute when value is empty string ""', () => {
+      const payload: Record<string, unknown> = {
+        [URN]: { department: 'Eng' },
+      };
+      const parsed = parseExtensionPath(`${URN}:department`)!;
+      const result = applyExtensionUpdate(payload, parsed, '');
+      const ext = result[URN] as Record<string, unknown>;
+      expect(ext.department).toBeUndefined();
+    });
+
+    it('should remove attribute when value is null', () => {
+      const payload: Record<string, unknown> = {
+        [URN]: { manager: { value: 'MGR' } },
+      };
+      const parsed = parseExtensionPath(`${URN}:manager`)!;
+      const result = applyExtensionUpdate(payload, parsed, null);
+      const ext = result[URN] as Record<string, unknown>;
+      expect(ext.manager).toBeUndefined();
+    });
+
+    it('should remove attribute when value is {"value":null}', () => {
+      const payload: Record<string, unknown> = {
+        [URN]: { manager: { value: 'MGR' } },
+      };
+      const parsed = parseExtensionPath(`${URN}:manager`)!;
+      const result = applyExtensionUpdate(payload, parsed, { value: null });
+      const ext = result[URN] as Record<string, unknown>;
+      expect(ext.manager).toBeUndefined();
+    });
+
+    it('should NOT remove attribute when value is non-empty object', () => {
+      const payload: Record<string, unknown> = {
+        [URN]: { manager: { value: 'OLD' } },
+      };
+      const parsed = parseExtensionPath(`${URN}:manager`)!;
+      const result = applyExtensionUpdate(payload, parsed, { value: 'NEW-MGR' });
+      expect((result[URN] as Record<string, unknown>).manager).toEqual({ value: 'NEW-MGR' });
+    });
   });
 
   // ─── removeExtensionAttribute ────────────────────────────────────────

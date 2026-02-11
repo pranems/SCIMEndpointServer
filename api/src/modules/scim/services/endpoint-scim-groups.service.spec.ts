@@ -300,7 +300,7 @@ describe('EndpointScimGroupsService', () => {
         displayName: 'Updated Group Name',
       });
 
-      await service.patchGroupForEndpoint(mockGroup.scimId, patchDto, mockEndpoint.id);
+      const result = await service.patchGroupForEndpoint(mockGroup.scimId, patchDto, 'http://localhost:3000/scim', mockEndpoint.id);
 
       expect(mockPrismaService.scimGroup.findFirst).toHaveBeenCalledWith({
         where: {
@@ -318,6 +318,44 @@ describe('EndpointScimGroupsService', () => {
       );
     });
 
+    it('should return updated group resource with 200 OK (RFC 7644 §3.5.2)', async () => {
+      const patchDto: PatchGroupDto = {
+        schemas: ['urn:ietf:params:scim:api:messages:2.0:PatchOp'],
+        Operations: [
+          {
+            op: 'replace',
+            path: 'displayName',
+            value: 'Patched Group',
+          },
+        ],
+      };
+
+      const updatedGroup = {
+        ...mockGroup,
+        displayName: 'Patched Group',
+      };
+
+      // First call for initial lookup, second call after update to return the resource
+      mockPrismaService.scimGroup.findFirst
+        .mockResolvedValueOnce(mockGroup)
+        .mockResolvedValueOnce(updatedGroup);
+      mockPrismaService.scimGroup.update.mockResolvedValue(updatedGroup);
+
+      const result = await service.patchGroupForEndpoint(
+        mockGroup.scimId,
+        patchDto,
+        'http://localhost:3000/scim',
+        mockEndpoint.id
+      );
+
+      // Verify the result is a full SCIM Group resource (not void/empty)
+      expect(result).toBeDefined();
+      expect(result.schemas).toContain('urn:ietf:params:scim:schemas:core:2.0:Group');
+      expect(result.id).toBe(mockGroup.scimId);
+      expect(result.displayName).toBe('Patched Group');
+      expect(result.meta).toBeDefined();
+    });
+
     it('should add members to group within endpoint', async () => {
       const patchDto: PatchGroupDto = {
         schemas: ['urn:ietf:params:scim:api:messages:2.0:PatchOp'],
@@ -333,7 +371,7 @@ describe('EndpointScimGroupsService', () => {
       mockPrismaService.scimGroup.findFirst.mockResolvedValue(mockGroup);
       mockPrismaService.scimUser.findMany.mockResolvedValue([mockUser]);
 
-      await service.patchGroupForEndpoint(mockGroup.scimId, patchDto, mockEndpoint.id);
+      await service.patchGroupForEndpoint(mockGroup.scimId, patchDto, 'http://localhost:3000/scim', mockEndpoint.id);
 
       expect(mockPrismaService.groupMember.createMany).toHaveBeenCalled();
       expect(mockPrismaService.scimUser.findMany).toHaveBeenCalledWith(
@@ -373,7 +411,7 @@ describe('EndpointScimGroupsService', () => {
 
       mockPrismaService.scimGroup.findFirst.mockResolvedValue(groupWithMember);
 
-      await service.patchGroupForEndpoint(mockGroup.scimId, patchDto, mockEndpoint.id);
+      await service.patchGroupForEndpoint(mockGroup.scimId, patchDto, 'http://localhost:3000/scim', mockEndpoint.id);
 
       expect(mockPrismaService.groupMember.deleteMany).toHaveBeenCalled();
     });
@@ -400,7 +438,7 @@ describe('EndpointScimGroupsService', () => {
         mockEndpointContext.getConfig.mockReturnValue({});
 
         await expect(
-          service.patchGroupForEndpoint(mockGroup.scimId, patchDto, mockEndpoint.id)
+          service.patchGroupForEndpoint(mockGroup.scimId, patchDto, 'http://localhost:3000/scim', mockEndpoint.id)
         ).rejects.toThrow(HttpException);
 
         // Should not attempt to create members
@@ -430,7 +468,7 @@ describe('EndpointScimGroupsService', () => {
           MultiOpPatchRequestAddMultipleMembersToGroup: 'True',
         });
 
-        await service.patchGroupForEndpoint(mockGroup.scimId, patchDto, mockEndpoint.id);
+        await service.patchGroupForEndpoint(mockGroup.scimId, patchDto, 'http://localhost:3000/scim', mockEndpoint.id);
 
         // Should process the operation
         expect(mockPrismaService.groupMember.deleteMany).toHaveBeenCalled();
@@ -459,7 +497,7 @@ describe('EndpointScimGroupsService', () => {
           MultiOpPatchRequestAddMultipleMembersToGroup: true,
         });
 
-        await service.patchGroupForEndpoint(mockGroup.scimId, patchDto, mockEndpoint.id);
+        await service.patchGroupForEndpoint(mockGroup.scimId, patchDto, 'http://localhost:3000/scim', mockEndpoint.id);
 
         expect(mockPrismaService.groupMember.createMany).toHaveBeenCalled();
       });
@@ -481,7 +519,7 @@ describe('EndpointScimGroupsService', () => {
         // Flag is false (default)
         mockEndpointContext.getConfig.mockReturnValue({});
 
-        await service.patchGroupForEndpoint(mockGroup.scimId, patchDto, mockEndpoint.id);
+        await service.patchGroupForEndpoint(mockGroup.scimId, patchDto, 'http://localhost:3000/scim', mockEndpoint.id);
 
         // Single member add should succeed
         expect(mockPrismaService.groupMember.createMany).toHaveBeenCalled();
@@ -509,7 +547,7 @@ describe('EndpointScimGroupsService', () => {
         // Flag is false
         mockEndpointContext.getConfig.mockReturnValue({});
 
-        await service.patchGroupForEndpoint(mockGroup.scimId, patchDto, mockEndpoint.id);
+        await service.patchGroupForEndpoint(mockGroup.scimId, patchDto, 'http://localhost:3000/scim', mockEndpoint.id);
 
         // Multiple operations with single member each should succeed
         expect(mockPrismaService.groupMember.createMany).toHaveBeenCalled();
@@ -546,7 +584,7 @@ describe('EndpointScimGroupsService', () => {
         mockEndpointContext.getConfig.mockReturnValue({});
 
         await expect(
-          service.patchGroupForEndpoint(mockGroup.scimId, patchDto, mockEndpoint.id)
+          service.patchGroupForEndpoint(mockGroup.scimId, patchDto, 'http://localhost:3000/scim', mockEndpoint.id)
         ).rejects.toThrow(HttpException);
 
         // Should not attempt to update group
@@ -573,7 +611,7 @@ describe('EndpointScimGroupsService', () => {
           MultiOpPatchRequestRemoveMultipleMembersFromGroup: 'True',
         });
 
-        await service.patchGroupForEndpoint(mockGroup.scimId, patchDto, mockEndpoint.id);
+        await service.patchGroupForEndpoint(mockGroup.scimId, patchDto, 'http://localhost:3000/scim', mockEndpoint.id);
 
         expect(mockPrismaService.groupMember.deleteMany).toHaveBeenCalled();
       });
@@ -598,7 +636,7 @@ describe('EndpointScimGroupsService', () => {
           MultiOpPatchRequestRemoveMultipleMembersFromGroup: true,
         });
 
-        await service.patchGroupForEndpoint(mockGroup.scimId, patchDto, mockEndpoint.id);
+        await service.patchGroupForEndpoint(mockGroup.scimId, patchDto, 'http://localhost:3000/scim', mockEndpoint.id);
 
         expect(mockPrismaService.groupMember.deleteMany).toHaveBeenCalled();
       });
@@ -621,7 +659,7 @@ describe('EndpointScimGroupsService', () => {
         // Flag is false (default)
         mockEndpointContext.getConfig.mockReturnValue({});
 
-        await service.patchGroupForEndpoint(mockGroup.scimId, patchDto, mockEndpoint.id);
+        await service.patchGroupForEndpoint(mockGroup.scimId, patchDto, 'http://localhost:3000/scim', mockEndpoint.id);
 
         // Single member remove should succeed
         expect(mockPrismaService.groupMember.deleteMany).toHaveBeenCalled();
@@ -642,7 +680,7 @@ describe('EndpointScimGroupsService', () => {
         // Flag is false (default)
         mockEndpointContext.getConfig.mockReturnValue({});
 
-        await service.patchGroupForEndpoint(mockGroup.scimId, patchDto, mockEndpoint.id);
+        await service.patchGroupForEndpoint(mockGroup.scimId, patchDto, 'http://localhost:3000/scim', mockEndpoint.id);
 
         // Single member remove should succeed
         expect(mockPrismaService.groupMember.deleteMany).toHaveBeenCalled();
@@ -669,7 +707,7 @@ describe('EndpointScimGroupsService', () => {
         // Flag is false
         mockEndpointContext.getConfig.mockReturnValue({});
 
-        await service.patchGroupForEndpoint(mockGroup.scimId, patchDto, mockEndpoint.id);
+        await service.patchGroupForEndpoint(mockGroup.scimId, patchDto, 'http://localhost:3000/scim', mockEndpoint.id);
 
         // Multiple operations with single member each should succeed
         expect(mockPrismaService.groupMember.deleteMany).toHaveBeenCalled();
@@ -690,7 +728,7 @@ describe('EndpointScimGroupsService', () => {
         // Default config - PatchOpAllowRemoveAllMembers defaults to true
         mockEndpointContext.getConfig.mockReturnValue({});
 
-        await service.patchGroupForEndpoint(mockGroup.scimId, patchDto, mockEndpoint.id);
+        await service.patchGroupForEndpoint(mockGroup.scimId, patchDto, 'http://localhost:3000/scim', mockEndpoint.id);
 
         // Should remove all members (empty members array)
         expect(mockPrismaService.groupMember.deleteMany).toHaveBeenCalled();
@@ -716,7 +754,7 @@ describe('EndpointScimGroupsService', () => {
 
         // path=members without value array should be rejected
         await expect(
-          service.patchGroupForEndpoint(mockGroup.scimId, patchDto, mockEndpoint.id)
+          service.patchGroupForEndpoint(mockGroup.scimId, patchDto, 'http://localhost:3000/scim', mockEndpoint.id)
         ).rejects.toThrow(HttpException);
 
         expect(mockPrismaService.groupMember.deleteMany).not.toHaveBeenCalled();
@@ -740,7 +778,7 @@ describe('EndpointScimGroupsService', () => {
 
         // path=members without value array should be rejected
         await expect(
-          service.patchGroupForEndpoint(mockGroup.scimId, patchDto, mockEndpoint.id)
+          service.patchGroupForEndpoint(mockGroup.scimId, patchDto, 'http://localhost:3000/scim', mockEndpoint.id)
         ).rejects.toThrow(HttpException);
 
         expect(mockPrismaService.groupMember.deleteMany).not.toHaveBeenCalled();
@@ -765,7 +803,7 @@ describe('EndpointScimGroupsService', () => {
           displayName: 'New Display Name',
         });
 
-        await service.patchGroupForEndpoint(mockGroup.scimId, patchDto, mockEndpoint.id);
+        await service.patchGroupForEndpoint(mockGroup.scimId, patchDto, 'http://localhost:3000/scim', mockEndpoint.id);
 
         expect(mockPrismaService.scimGroup.update).toHaveBeenCalledWith(
           expect.objectContaining({
@@ -792,7 +830,7 @@ describe('EndpointScimGroupsService', () => {
           ...mockGroup,
         });
 
-        await service.patchGroupForEndpoint(mockGroup.scimId, patchDto, mockEndpoint.id);
+        await service.patchGroupForEndpoint(mockGroup.scimId, patchDto, 'http://localhost:3000/scim', mockEndpoint.id);
 
         expect(mockPrismaService.scimGroup.update).toHaveBeenCalledWith(
           expect.objectContaining({
@@ -820,7 +858,7 @@ describe('EndpointScimGroupsService', () => {
           displayName: 'Combined',
         });
 
-        await service.patchGroupForEndpoint(mockGroup.scimId, patchDto, mockEndpoint.id);
+        await service.patchGroupForEndpoint(mockGroup.scimId, patchDto, 'http://localhost:3000/scim', mockEndpoint.id);
 
         expect(mockPrismaService.scimGroup.update).toHaveBeenCalledWith(
           expect.objectContaining({
@@ -849,7 +887,7 @@ describe('EndpointScimGroupsService', () => {
           ...mockGroup,
         });
 
-        await service.patchGroupForEndpoint(mockGroup.scimId, patchDto, mockEndpoint.id);
+        await service.patchGroupForEndpoint(mockGroup.scimId, patchDto, 'http://localhost:3000/scim', mockEndpoint.id);
 
         expect(mockPrismaService.scimGroup.update).toHaveBeenCalledWith(
           expect.objectContaining({
@@ -877,7 +915,7 @@ describe('EndpointScimGroupsService', () => {
           displayName: 'Direct String Name',
         });
 
-        await service.patchGroupForEndpoint(mockGroup.scimId, patchDto, mockEndpoint.id);
+        await service.patchGroupForEndpoint(mockGroup.scimId, patchDto, 'http://localhost:3000/scim', mockEndpoint.id);
 
         expect(mockPrismaService.scimGroup.update).toHaveBeenCalledWith(
           expect.objectContaining({
@@ -909,7 +947,7 @@ describe('EndpointScimGroupsService', () => {
           displayName: 'Group With Members',
         });
 
-        await service.patchGroupForEndpoint(mockGroup.scimId, patchDto, mockEndpoint.id);
+        await service.patchGroupForEndpoint(mockGroup.scimId, patchDto, 'http://localhost:3000/scim', mockEndpoint.id);
 
         expect(mockPrismaService.scimGroup.update).toHaveBeenCalledWith(
           expect.objectContaining({
@@ -935,7 +973,7 @@ describe('EndpointScimGroupsService', () => {
         mockPrismaService.scimGroup.findFirst.mockResolvedValue(mockGroup);
 
         await expect(
-          service.patchGroupForEndpoint(mockGroup.scimId, patchDto, mockEndpoint.id)
+          service.patchGroupForEndpoint(mockGroup.scimId, patchDto, 'http://localhost:3000/scim', mockEndpoint.id)
         ).rejects.toThrow(HttpException);
       });
 
@@ -954,7 +992,7 @@ describe('EndpointScimGroupsService', () => {
         mockPrismaService.scimGroup.findFirst.mockResolvedValue(mockGroup);
 
         await expect(
-          service.patchGroupForEndpoint(mockGroup.scimId, patchDto, mockEndpoint.id)
+          service.patchGroupForEndpoint(mockGroup.scimId, patchDto, 'http://localhost:3000/scim', mockEndpoint.id)
         ).rejects.toThrow(HttpException);
       });
     });
@@ -970,7 +1008,7 @@ describe('EndpointScimGroupsService', () => {
       mockPrismaService.scimGroup.findFirst.mockResolvedValue(null);
 
       await expect(
-        service.patchGroupForEndpoint('non-existent', patchDto, mockEndpoint.id)
+        service.patchGroupForEndpoint('non-existent', patchDto, 'http://localhost:3000/scim', mockEndpoint.id)
       ).rejects.toThrow(HttpException);
     });
 
@@ -985,7 +1023,7 @@ describe('EndpointScimGroupsService', () => {
       mockPrismaService.scimGroup.findFirst.mockResolvedValue(mockGroup);
 
       await expect(
-        service.patchGroupForEndpoint(mockGroup.scimId, patchDto, mockEndpoint.id)
+        service.patchGroupForEndpoint(mockGroup.scimId, patchDto, 'http://localhost:3000/scim', mockEndpoint.id)
       ).rejects.toThrow(HttpException);
     });
   });
@@ -1344,7 +1382,7 @@ describe('EndpointScimGroupsService', () => {
       mockPrismaService.scimGroup.findFirst.mockResolvedValue(mockGroup);
       mockPrismaService.scimGroup.update.mockResolvedValue({ ...mockGroup, externalId: 'ext-updated' });
 
-      await service.patchGroupForEndpoint(mockGroup.scimId, patchDto, mockEndpoint.id);
+      await service.patchGroupForEndpoint(mockGroup.scimId, patchDto, 'http://localhost:3000/scim', mockEndpoint.id);
 
       expect(mockPrismaService.scimGroup.update).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -1366,7 +1404,7 @@ describe('EndpointScimGroupsService', () => {
       mockPrismaService.scimGroup.findFirst.mockResolvedValue(mockGroup);
       mockPrismaService.scimGroup.update.mockResolvedValue({ ...mockGroup, externalId: 'ext-via-nopath' });
 
-      await service.patchGroupForEndpoint(mockGroup.scimId, patchDto, mockEndpoint.id);
+      await service.patchGroupForEndpoint(mockGroup.scimId, patchDto, 'http://localhost:3000/scim', mockEndpoint.id);
 
       expect(mockPrismaService.scimGroup.update).toHaveBeenCalledWith(
         expect.objectContaining({
