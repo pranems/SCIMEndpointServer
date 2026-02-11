@@ -14,7 +14,8 @@ export function createScimError({ status, detail, scimType }: ScimErrorOptions):
       schemas: [SCIM_ERROR_SCHEMA],
       detail,
       scimType,
-      status
+      // RFC 7644 §3.12: "status" MUST be a string (the HTTP status code as text)
+      status: String(status)
     },
     status
   );

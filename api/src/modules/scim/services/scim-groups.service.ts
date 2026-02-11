@@ -50,8 +50,10 @@ export class ScimGroupsService {
 
     const sanitizedPayload = this.extractAdditionalAttributes(dto);
 
-  const group = await this.prisma.scimGroup.create({
+    const endpointId = await this.getOrCreateDefaultEndpointId();
+    const group = await this.prisma.scimGroup.create({
       data: {
+        endpointId,
         scimId,
         displayName: dto.displayName,
         rawPayload: JSON.stringify(sanitizedPayload),
@@ -75,18 +77,18 @@ export class ScimGroupsService {
   async getGroup(scimId: string, baseUrl: string): Promise<ScimGroupResource> {
   const group = await this.getGroupWithMembers(scimId);
     if (!group) {
-      throw createScimError({ status: 404, detail: `Resource ${scimId} not found.` });
+      throw createScimError({ status: 404, scimType: 'noTarget', detail: `Resource ${scimId} not found.` });
     }
 
     return this.toScimGroupResource(group, baseUrl);
   }
 
   async deleteGroup(scimId: string): Promise<void> {
-    try {
-      await this.prisma.scimGroup.delete({ where: { scimId } });
-    } catch (error) {
-      throw createScimError({ status: 404, detail: `Resource ${scimId} not found.` });
+    const group = await this.prisma.scimGroup.findFirst({ where: { scimId }, select: { id: true } });
+    if (!group) {
+      throw createScimError({ status: 404, scimType: 'noTarget', detail: `Resource ${scimId} not found.` });
     }
+    await this.prisma.scimGroup.delete({ where: { id: group.id } });
   }
 
   async listGroups(
@@ -126,7 +128,7 @@ export class ScimGroupsService {
 
   const group = await this.getGroupWithMembers(scimId);
     if (!group) {
-      throw createScimError({ status: 404, detail: `Resource ${scimId} not found.` });
+      throw createScimError({ status: 404, scimType: 'noTarget', detail: `Resource ${scimId} not found.` });
     }
 
     let displayName: string = group.displayName;
@@ -147,6 +149,7 @@ export class ScimGroupsService {
         default:
           throw createScimError({
             status: 400,
+            scimType: 'invalidValue',
             detail: `Patch operation '${operation.op}' is not supported.`
           });
       }
@@ -182,7 +185,7 @@ export class ScimGroupsService {
 
     const group = await this.getGroupWithMembers(scimId);
     if (!group) {
-      throw createScimError({ status: 404, detail: `Resource ${scimId} not found.` });
+      throw createScimError({ status: 404, scimType: 'noTarget', detail: `Resource ${scimId} not found.` });
     }
 
     const now = new Date();
@@ -223,13 +226,14 @@ export class ScimGroupsService {
     if (!schemas || !schemas.includes(requiredSchema)) {
       throw createScimError({
         status: 400,
+        scimType: 'invalidSyntax',
         detail: `Missing required schema '${requiredSchema}'.`
       });
     }
   }
 
   private getGroupWithMembers(scimId: string): Promise<GroupWithMembers | null> {
-    return this.prisma.scimGroup.findUnique({
+    return this.prisma.scimGroup.findFirst({
       where: { scimId },
       select: {
         id: true,
@@ -254,6 +258,7 @@ export class ScimGroupsService {
     if (!match) {
       throw createScimError({
         status: 400,
+        scimType: 'invalidFilter',
         detail: `Unsupported filter expression: '${filter}'.`
       });
     }
@@ -271,6 +276,7 @@ export class ScimGroupsService {
       if (typeof operation.value !== 'string') {
         throw createScimError({
           status: 400,
+          scimType: 'invalidValue',
           detail: 'Replace operation for displayName requires a string value.'
         });
       }
@@ -282,6 +288,7 @@ export class ScimGroupsService {
       if (!Array.isArray(operation.value)) {
         throw createScimError({
           status: 400,
+          scimType: 'invalidValue',
           detail: 'Replace operation for members requires an array value.'
         });
       }
@@ -292,6 +299,7 @@ export class ScimGroupsService {
 
     throw createScimError({
       status: 400,
+      scimType: 'invalidPath',
       detail: `Patch path '${operation.path ?? ''}' is not supported.`
     });
   }
@@ -304,6 +312,7 @@ export class ScimGroupsService {
     if (path && path !== 'members') {
       throw createScimError({
         status: 400,
+        scimType: 'invalidPath',
         detail: `Add operation path '${operation.path ?? ''}' is not supported.`
       });
     }
@@ -322,6 +331,7 @@ export class ScimGroupsService {
     if (!operation.path) {
       throw createScimError({
         status: 400,
+        scimType: 'noTarget',
         detail: 'Remove operation requires a path.'
       });
     }
@@ -330,6 +340,7 @@ export class ScimGroupsService {
     if (!match) {
       throw createScimError({
         status: 400,
+        scimType: 'invalidPath',
         detail: `Remove operation path '${operation.path}' is not supported.`
       });
     }
@@ -444,6 +455,22 @@ export class ScimGroupsService {
       members,
       ...rest
     };
+  }
+
+  /** Lazily resolves (or creates) a 'default' endpoint for legacy non-multi-endpoint routes. */
+  private defaultEndpointId: string | null = null;
+  private async getOrCreateDefaultEndpointId(): Promise<string> {
+    if (this.defaultEndpointId) return this.defaultEndpointId;
+    const name = 'default';
+    let ep = await this.prisma.endpoint.findUnique({ where: { name }, select: { id: true } });
+    if (!ep) {
+      ep = await this.prisma.endpoint.create({
+        data: { name, displayName: 'Default Endpoint', description: 'Auto-created for legacy routes' },
+        select: { id: true },
+      });
+    }
+    this.defaultEndpointId = ep.id;
+    return ep.id;
   }
 
   private parseJson<T>(value: string | null | undefined): T {
