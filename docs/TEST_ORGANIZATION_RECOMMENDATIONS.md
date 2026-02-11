@@ -281,3 +281,26 @@ coverageThreshold: {
 | 8 | **Enforce coverage in CI** — 80% line, 75% branch minimum |
 | 9 | **Keep smoke tests thin** — verify deployment works, not exhaustive logic |
 | 10 | **Fail fast in CI** — lint → unit → e2e → build → deploy → smoke |
+
+---
+
+## Appendix A: Resolved Issues Found During E2E Implementation
+
+### `import type` Erases DTO Classes at Runtime (Fixed 2026-02-11)
+
+**Problem:** Four controller files used `import type { CreateUserDto }` instead of `import { CreateUserDto }`. TypeScript's `import type` erases the class at compile time — it becomes `undefined` at runtime.
+
+**Impact:**
+- NestJS `ValidationPipe` with `transform: true` couldn't instantiate the DTO via `class-transformer`
+- The request body became a plain `Function`-typed object where `name` collided with `Function.prototype.name` (a non-enumerable getter)
+- `Object.keys(dto)` excluded `name`, so `extractAdditionalAttributes` never captured it → not stored in `rawPayload`
+- `class-validator` decorators were never applied → missing required fields returned 500 instead of 400
+- The `emails` field and other non-colliding properties worked fine, masking the bug
+
+**Fix:** Changed `import type { ... }` → `import { ... }` for all DTO classes in:
+- `endpoint-scim-users.controller.ts` — `CreateUserDto`, `PatchUserDto`
+- `endpoint-scim-groups.controller.ts` — `CreateGroupDto`, `PatchGroupDto`
+- `endpoint-scim.controller.ts` — all 4 DTOs
+- `admin.controller.ts` — `CreateGroupDto`, `CreateUserDto`
+
+**Lesson:** Never use `import type` for classes consumed by NestJS decorators (`@Body()`, `@Param()`) or dependency injection. The `import type` syntax is only safe for pure type annotations (interfaces, generics, function parameter/return types).

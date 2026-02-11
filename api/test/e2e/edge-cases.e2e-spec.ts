@@ -62,19 +62,15 @@ describe('Edge Cases (E2E)', () => {
     });
 
     it('should reject user creation without userName', async () => {
-      const res = await scimPost(app, `${basePath}/Users`, token, {
+      await scimPost(app, `${basePath}/Users`, token, {
         schemas: ['urn:ietf:params:scim:schemas:core:2.0:User'],
-      });
-      // Missing userName causes server error (DTO validation not enforced at runtime)
-      expect([400, 500]).toContain(res.status);
+      }).expect(400);
     });
 
     it('should reject group creation without displayName', async () => {
-      const res = await scimPost(app, `${basePath}/Groups`, token, {
+      await scimPost(app, `${basePath}/Groups`, token, {
         schemas: ['urn:ietf:params:scim:schemas:core:2.0:Group'],
-      });
-      // Missing displayName causes server error (DTO validation not enforced at runtime)
-      expect([400, 500]).toContain(res.status);
+      }).expect(400);
     });
   });
 
@@ -115,9 +111,11 @@ describe('Edge Cases (E2E)', () => {
     });
 
     it('should handle special chars in userName', async () => {
-      const user = validUser({ userName: "o'brien-st.clair@example.com" });
+      const user = validUser({ userName: "o'brien-st.clair@example.com", name: { givenName: "O'Brien", familyName: 'St. Clair' } });
       const res = await scimPost(app, `${basePath}/Users`, token, user).expect(201);
       expect(res.body.userName).toBe("o'brien-st.clair@example.com");
+      expect(res.body.name.givenName).toBe("O'Brien");
+      expect(res.body.name.familyName).toBe('St. Clair');
     });
   });
 

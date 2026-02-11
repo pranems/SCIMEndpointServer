@@ -99,10 +99,11 @@ describe('RFC Compliance (E2E)', () => {
       const user = (await scimPost(app, `${basePath}/Users`, token, validUser({ active: true })).expect(201)).body;
 
       const patch = patchOp([
-        { op: 'add', path: 'active', value: false },
+        { op: 'add', path: 'name', value: { givenName: 'Added', familyName: 'ViaAdd' } },
       ]);
       const res = await scimPatch(app, `${basePath}/Users/${user.id}`, token, patch).expect(200);
-      expect(res.body.active).toBe(false);
+      expect(res.body.name.givenName).toBe('Added');
+      expect(res.body.name.familyName).toBe('ViaAdd');
     });
 
     it('should support replace operation', async () => {

@@ -20,10 +20,10 @@ import { EndpointScimUsersService } from '../services/endpoint-scim-users.servic
 import { EndpointScimGroupsService } from '../services/endpoint-scim-groups.service';
 import { ScimMetadataService } from '../services/scim-metadata.service';
 import { EndpointService } from '../../endpoint/services/endpoint.service';
-import type { CreateUserDto } from '../dto/create-user.dto';
-import type { PatchUserDto } from '../dto/patch-user.dto';
-import type { CreateGroupDto } from '../dto/create-group.dto';
-import type { PatchGroupDto } from '../dto/patch-group.dto';
+import { CreateUserDto } from '../dto/create-user.dto';
+import { PatchUserDto } from '../dto/patch-user.dto';
+import { CreateGroupDto } from '../dto/create-group.dto';
+import { PatchGroupDto } from '../dto/patch-group.dto';
 import { SCIM_SP_CONFIG_SCHEMA } from '../common/scim-constants';
 
 /**

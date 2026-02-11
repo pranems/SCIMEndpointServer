@@ -51,6 +51,8 @@ describe('User Lifecycle (E2E)', () => {
       expect(res.body.id).toBeDefined();
       expect(res.body.userName).toBe(user.userName);
       expect(res.body.active).toBe(true);
+      expect(res.body.name).toBeDefined();
+      expect(res.body.name.givenName).toBe('Test');
       expect(res.body.meta).toBeDefined();
       expect(res.body.meta.resourceType).toBe('User');
       expect(res.body.meta.created).toBeDefined();
@@ -156,12 +158,16 @@ describe('User Lifecycle (E2E)', () => {
       const replacement = validUser({
         userName: created.userName,
         active: false,
+        name: { givenName: 'Updated', familyName: 'User' },
       });
 
       const res = await scimPut(app, `${basePath}/Users/${created.id}`, token, replacement).expect(200);
       expect(res.body.id).toBe(created.id);
       expect(res.body.userName).toBe(created.userName);
       expect(res.body.active).toBe(false);
+      expect(res.body.name).toBeDefined();
+      expect(res.body.name.givenName).toBe('Updated');
+      expect(res.body.name.familyName).toBe('User');
     });
 
     it('should update lastModified on replace', async () => {

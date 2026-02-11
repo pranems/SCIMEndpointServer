@@ -17,8 +17,8 @@ import { EndpointContextStorage } from '../../endpoint/endpoint-context.storage'
 import type { EndpointConfig } from '../../endpoint/endpoint-config.interface';
 import { EndpointScimUsersService } from '../services/endpoint-scim-users.service';
 import { EndpointService } from '../../endpoint/services/endpoint.service';
-import type { CreateUserDto } from '../dto/create-user.dto';
-import type { PatchUserDto } from '../dto/patch-user.dto';
+import { CreateUserDto } from '../dto/create-user.dto';
+import { PatchUserDto } from '../dto/patch-user.dto';
 
 /**
  * Endpoint-specific SCIM Users Controller

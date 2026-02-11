@@ -17,8 +17,8 @@ import { EndpointContextStorage } from '../../endpoint/endpoint-context.storage'
 import type { EndpointConfig } from '../../endpoint/endpoint-config.interface';
 import { EndpointScimGroupsService } from '../services/endpoint-scim-groups.service';
 import { EndpointService } from '../../endpoint/services/endpoint.service';
-import type { CreateGroupDto } from '../dto/create-group.dto';
-import type { PatchGroupDto } from '../dto/patch-group.dto';
+import { CreateGroupDto } from '../dto/create-group.dto';
+import { PatchGroupDto } from '../dto/patch-group.dto';
 
 /**
  * Endpoint-specific SCIM Groups Controller
