@@ -196,10 +196,11 @@ Or specific version:
 - Random names without prefix (won't trigger test build)
 
 ### Testing Checklist
+- [ ] Lint passes (`cd api && npm run lint`) — 0 errors expected (48 warnings OK)
 - [ ] Backend compiles (`cd api && npm run build`)
 - [ ] Frontend compiles (`cd web && npm run build`)
 - [ ] Unit tests pass (`cd api && npm test`) — 492 unit tests
-- [ ] Live integration tests pass (`.\scripts\live-test.ps1`) — 183 assertions
+- [ ] Live integration tests pass (`.\scripts\live-test.ps1`) — 212 assertions
 - [ ] Live tests pass in verbose mode (`.\scripts\live-test.ps1 -Verbose`) — intercepted API output
 - [ ] Local testing done (if possible)
 - [ ] Test image deployed to Azure

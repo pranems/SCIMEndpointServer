@@ -84,9 +84,11 @@ export class BackupService implements OnModuleInit {
     const scheduleRetry = () => {
       if (this.backupCount > 0 || this.initialBackupRetryAttempts >= this.maxInitialBackupRetries) return;
       this.initialBackupRetryAttempts++;
-      setTimeout(async () => {
-        try { await this.performBackup(); } catch (e) { /* already logged */ }
-        scheduleRetry();
+      setTimeout(() => {
+        void (async () => {
+          try { await this.performBackup(); } catch (e) { /* already logged */ }
+          scheduleRetry();
+        })();
       }, this.initialBackupRetryIntervalMs);
     };
     scheduleRetry();

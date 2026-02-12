@@ -4,13 +4,13 @@ This file intentionally trimmed for clarity. Full historic log kept in git histo
 
 ### Recent Key Achievements (Chronological)
 | Date | Achievement |
-|------|-------------|
-| 2026-02-14 | 📝 **Docs Updated to Current State:** SCIM_COMPLIANCE (filtering 85→100%), RECOMMENDED_DESIGN_IMPROVEMENTS (§17.1 gap analysis + §18 roadmap refreshed), INDEX.md, TESTING-WORKFLOW.md |
+|------|-------------|| 2026-02-14 | 🧹 **ESLint Hardened:** `.eslintrc.cjs` updated for @typescript-eslint 8.x — 223→0 errors (8 source fixes + config overrides), 48 remaining warnings (intentional `any` + test scaffolding). `fast-xml-parser` CVE patched. || 2026-02-14 | � **Major Dependency Upgrade:** Node 22-alpine Docker, NestJS 10→11, Prisma 5→6, TypeScript 5.4→5.9, tsconfig targets es2022. 492 unit + 154 e2e + 212 live tests passing (local & Docker) |
+| 2026-02-14 | �📝 **Docs Updated to Current State:** SCIM_COMPLIANCE (filtering 85→100%), RECOMMENDED_DESIGN_IMPROVEMENTS (§17.1 gap analysis + §18 roadmap refreshed), INDEX.md, TESTING-WORKFLOW.md |
 | 2026-02-14 | 📦 **JSON Consolidation:** 32→19 JSON files (41% reduction) — merged PATCH examples, removed duplicates, fixed OpenAPI /Bulk + bulk.supported, fixed update-endpoint strictMode |
 | 2026-02-11 | 📚 **Docs Consolidation:** 34→21 markdown files (~45% line reduction) — merged redundant guides, removed stale files |
-| 2026-02-11 | 🔊 **Verbose Live Tests:** `live-test.ps1 -Verbose` cmdlet overrides transparently intercept all 138 API calls; 183/183 tests pass in both modes |
+| 2026-02-11 | 🔊 **Verbose Live Tests:** `live-test.ps1 -Verbose` cmdlet overrides transparently intercept all API calls; 183/183 tests at the time (later expanded to 212) |
 | 2026-02-10 | ✅ **Phase 1 RFC Compliance Complete:** SCIM filter parser (10 operators + and/or/not + grouping), POST /.search, ETag/If-None-Match→304, attributes/excludedAttributes projection, centralized error handling, SCIM content-type on all responses |
-| 2026-02-10 | 🧪 **492 unit tests + 183 live integration tests passing** — all 25 Microsoft SCIM Validator tests pass (including 7 preview) |
+| 2026-02-10 | 🧪 **492 unit tests + 183 live integration tests passing** (later expanded to 212) — all 25 Microsoft SCIM Validator tests pass (including 7 preview) |
 | 2025-11-21 | 🎯 **PAGINATION FIX:** Backend-driven keepalive filtering (TDD implementation) - accurate counts, no empty pages when hideKeepalive enabled |
 | 2025-11-21 | Extended executive/technical wiki created (`wiki.md`) for management evaluation |
 | 2025-11-21 | Added beginner quickstart & Azure CLI prerequisites to wiki (`wiki.md`) |
@@ -67,7 +67,7 @@ Current Version: v0.8.15 (collision testing quick-start + force re-POST guidance
 ---
 
 ## Status
-Production Ready (v0.8.15) — **Phase 1 RFC Compliance complete** (Feb 2026). Full SCIM filter parser (10 operators), POST /.search, ETag conditional requests, attribute projection, centralized error handling. 492 unit tests, 183 live integration tests, all 25 Microsoft SCIM Validator tests passing. Documentation and JSON examples consolidated and aligned to current implementation.
+Production Ready (v0.8.15) — **Phase 1 RFC Compliance complete** (Feb 2026). Full SCIM filter parser (10 operators), POST /.search, ETag conditional requests, attribute projection, centralized error handling. 492 unit tests, 154 e2e tests, 212 live integration tests, all 25 Microsoft SCIM Validator tests passing. Documentation and JSON examples consolidated and aligned to current implementation.
 
 ## Quick Commands
 ```powershell
@@ -99,8 +99,8 @@ iex (irm 'https://raw.githubusercontent.com/kayasax/SCIMTool/master/scripts/upda
 - Clear instructions for Azure Portal setup
 
 **Core Technologies:**
-- Node.js 20 LTS & TypeScript
-- NestJS service layer with Prisma ORM
+- Node.js 22 LTS & TypeScript 5.9
+- NestJS 11 service layer with Prisma 6 ORM
 - SQLite (file-backed) for low-volume persistence
 - React + Vite frontend
 - Docker (local/dev) & Azure Container Apps (deployment target)
@@ -242,7 +242,7 @@ Deferred:
 Backend: `cd api && npm run start:dev`
 Frontend: `cd web && npm run dev`
 Unit Tests: `cd api && npm test` (492 tests)
-Live Tests: `.\scripts\live-test.ps1` (183 assertions)
+Live Tests: `.\scripts\live-test.ps1` (212 assertions)
 Live Tests (verbose): `.\scripts\live-test.ps1 -Verbose`
 
 ---

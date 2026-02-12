@@ -687,7 +687,7 @@ export class EndpointScimGroupsService {
   }
 
   private extractAdditionalAttributes(dto: CreateGroupDto): Record<string, unknown> {
-    const { schemas, members, externalId, ...rest } = dto as CreateGroupDto & { externalId?: string };
+    const { schemas, members: _members, externalId: _externalId, ...rest } = dto as CreateGroupDto & { externalId?: string };
     return {
       schemas,
       ...rest

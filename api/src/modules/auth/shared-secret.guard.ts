@@ -86,7 +86,7 @@ export class SharedSecretGuard implements CanActivate {
 
         console.log('✅ OAuth 2.0 authentication successful:', payload.client_id);
         return true;
-      } catch (oauthError) {
+      } catch (_oauthError) {
         console.log('❌ OAuth 2.0 validation failed, checking legacy token...');
         // Fall through to legacy token check
       }

@@ -230,7 +230,7 @@ export class AdminController {
   }
 
   @Get('version')
-  async getVersion(): Promise<VersionInfo> {
+  getVersion(): VersionInfo {
     // Prefer explicit env vars injected at build/deploy time
     const version = process.env.APP_VERSION || this.readPackageVersion();
     const commit = process.env.GIT_COMMIT;
