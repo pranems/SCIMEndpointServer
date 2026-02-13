@@ -8,6 +8,8 @@ param(
     [string]$BlobBackupContainer,
     [string]$JwtSecret,
     [string]$OauthClientSecret,
+    [string]$GhcrUsername,
+    [string]$GhcrPassword,
     [switch]$EnablePersistentStorage
 )
 
@@ -169,6 +171,16 @@ if ([string]::IsNullOrWhiteSpace($JwtSecret) -or [string]::IsNullOrWhiteSpace($O
     return
 }
 
+# GHCR credentials (required if package is private)
+if (-not $GhcrUsername) {
+    $ghcrInput = Read-Host "Enter GitHub username for GHCR pull (press Enter to skip for public packages)"
+    if (-not [string]::IsNullOrWhiteSpace($ghcrInput)) { $GhcrUsername = $ghcrInput }
+}
+if ($GhcrUsername -and -not $GhcrPassword) {
+    $ghcrPat = Read-Host "Enter GitHub PAT for GHCR pull (needs read:packages scope)"
+    if (-not [string]::IsNullOrWhiteSpace($ghcrPat)) { $GhcrPassword = $ghcrPat }
+}
+
 if (-not $ImageTag) { $ImageTag = "latest" }
 
 Write-Host ""; Write-Host "Configuration Summary:" -ForegroundColor Cyan
@@ -247,7 +259,7 @@ Write-Host "   Environment: $envName" -ForegroundColor White
 Write-Host "   Virtual Network: $vnetName" -ForegroundColor White
 Write-Host "   Storage Account: $storageName" -ForegroundColor White
 Write-Host "   Log Analytics: $lawName" -ForegroundColor White
-Write-Host "   Image: ghcr.io/kayasax/scimserver:$ImageTag" -ForegroundColor White
+Write-Host "   Image: ghcr.io/pranems/scimserver:$ImageTag" -ForegroundColor White
 Write-Host "   Persistence: Blob snapshots (Account=$BlobBackupAccount Container=$BlobBackupContainer)" -ForegroundColor Green
 Write-Host ""
 
@@ -568,7 +580,7 @@ if ($appExists) {
 
     # Check current image version
     $currentImage = az containerapp show --name $AppName --resource-group $ResourceGroup --query "properties.template.containers[0].image" --output tsv 2>$null
-    $desiredImage = "ghcr.io/kayasax/scimserver:$ImageTag"
+    $desiredImage = "ghcr.io/pranems/scimserver:$ImageTag"
 
     Write-Host "      Current image: $currentImage" -ForegroundColor Gray
     Write-Host "      Desired image: $desiredImage" -ForegroundColor Gray
@@ -589,7 +601,7 @@ if (-not $skipAppDeployment) {
         environmentName = $envName
         location = $Location
         acrLoginServer = "ghcr.io"
-        image = "kayasax/scimserver:$ImageTag"
+        image = "pranems/scimserver:$ImageTag"
         scimSharedSecret = $ScimSecret
         jwtSecret = $JwtSecret
         oauthClientSecret = $OauthClientSecret
@@ -598,6 +610,10 @@ if (-not $skipAppDeployment) {
     # Pass blob backup parameters
     $containerParams.blobBackupAccountName = $BlobBackupAccount
     $containerParams.blobBackupContainerName = $BlobBackupContainer
+
+    # Pass GHCR credentials if provided (for private packages)
+    if ($GhcrUsername) { $containerParams.ghcrUsername = $GhcrUsername }
+    if ($GhcrPassword) { $containerParams.ghcrPassword = $GhcrPassword }
 
     # Create a temporary parameters file to avoid escaping issues with special characters
     $paramsFile = Join-Path ([System.IO.Path]::GetTempPath()) "scimserver-params-$(Get-Date -Format 'yyyyMMddHHmmss').json"

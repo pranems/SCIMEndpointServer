@@ -67,7 +67,7 @@ RUN apk add --no-cache openssl && \
 
 # Production environment
 ENV NODE_ENV=production \
-    PORT=80 \
+    PORT=8080 \
     DATABASE_URL="file:./data.db" \
     NODE_OPTIONS="--max_old_space_size=384"
 
@@ -95,11 +95,11 @@ RUN find ./node_modules -name "*.md" -delete && \
     find ./node_modules -name "*.map" -delete 2>/dev/null || true
 
 USER scim
-EXPOSE 80
+EXPOSE 8080
 
 # Optimized health check
 HEALTHCHECK --interval=60s --timeout=3s --start-period=10s --retries=2 \
-    CMD node -e "require('http').get('http://127.0.0.1:80/health',r=>{process.exit(r.statusCode===200?0:1)}).on('error',()=>process.exit(1))"
+    CMD node -e "require('http').get('http://127.0.0.1:8080/health',r=>{process.exit(r.statusCode===200?0:1)}).on('error',()=>process.exit(1))"
 
 CMD ["/app/docker-entrypoint.sh"]
 

@@ -1947,7 +1947,7 @@ Test-Result -Success ($logLevelEndpointId -ne $null) -Message "Endpoint ID is pr
 
 # --- Verify log-config reflects the endpoint level ---
 $logConfigAfterCreate = Invoke-RestMethod -Uri "$baseUrl/scim/admin/log-config" -Method GET -Headers $headers
-$epLevelAfterCreate = $logConfigAfterCreate.config.endpointLevels.$logLevelEndpointId
+$epLevelAfterCreate = $logConfigAfterCreate.endpointLevels.$logLevelEndpointId
 Test-Result -Success ($epLevelAfterCreate -ne $null) -Message "Endpoint level appears in log-config after create"
 
 # --- Get endpoint and verify config roundtrips ---
@@ -1967,7 +1967,7 @@ Test-Result -Success ($updatedEndpoint.config.logLevel -eq "TRACE") -Message "Up
 
 # --- Verify log-config reflects updated level ---
 $logConfigAfterUpdate = Invoke-RestMethod -Uri "$baseUrl/scim/admin/log-config" -Method GET -Headers $headers
-$epLevelAfterUpdate = $logConfigAfterUpdate.config.endpointLevels.$logLevelEndpointId
+$epLevelAfterUpdate = $logConfigAfterUpdate.endpointLevels.$logLevelEndpointId
 Test-Result -Success ($epLevelAfterUpdate -ne $null) -Message "Endpoint level updated in log-config after PATCH"
 
 # --- Update endpoint config without logLevel (should clear endpoint level) ---
@@ -1984,7 +1984,7 @@ Test-Result -Success ($clearedEndpoint.config.strictMode -eq $true) -Message "Ot
 
 # --- Verify log-config no longer has endpoint level ---
 $logConfigAfterClear = Invoke-RestMethod -Uri "$baseUrl/scim/admin/log-config" -Method GET -Headers $headers
-$epLevelAfterClear = $logConfigAfterClear.config.endpointLevels.$logLevelEndpointId
+$epLevelAfterClear = $logConfigAfterClear.endpointLevels.$logLevelEndpointId
 Test-Result -Success ($epLevelAfterClear -eq $null) -Message "Endpoint level cleared from log-config"
 
 # --- Create endpoint with logLevel alongside other config flags ---
@@ -2007,7 +2007,7 @@ Test-Result -Success ($mixedEndpoint.config.strictMode -eq $true) -Message "Mixe
 
 # --- Validate log-config for mixed endpoint ---
 $logConfigMixed = Invoke-RestMethod -Uri "$baseUrl/scim/admin/log-config" -Method GET -Headers $headers
-$mixedEpLevel = $logConfigMixed.config.endpointLevels.$mixedEndpointId
+$mixedEpLevel = $logConfigMixed.endpointLevels.$mixedEndpointId
 Test-Result -Success ($mixedEpLevel -ne $null) -Message "Mixed endpoint level in log-config"
 
 # --- Validation: reject invalid logLevel ---
@@ -2052,9 +2052,9 @@ Test-Result -Success $true -Message "Deleted log-ci-ep"
 
 # Verify cleanup cleared log-config
 $logConfigFinal = Invoke-RestMethod -Uri "$baseUrl/scim/admin/log-config" -Method GET -Headers $headers
-$finalEp1 = $logConfigFinal.config.endpointLevels.$logLevelEndpointId
-$finalEp2 = $logConfigFinal.config.endpointLevels.$mixedEndpointId
-$finalEp3 = $logConfigFinal.config.endpointLevels.$ciEndpointId
+$finalEp1 = $logConfigFinal.endpointLevels.$logLevelEndpointId
+$finalEp2 = $logConfigFinal.endpointLevels.$mixedEndpointId
+$finalEp3 = $logConfigFinal.endpointLevels.$ciEndpointId
 Test-Result -Success ($finalEp1 -eq $null -and $finalEp2 -eq $null -and $finalEp3 -eq $null) -Message "All endpoint levels cleaned from log-config after delete"
 
 # ============================================

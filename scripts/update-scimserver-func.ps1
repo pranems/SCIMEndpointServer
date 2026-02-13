@@ -1,7 +1,7 @@
 # SCIMServer Container App Update Function
 # NOTE: Saved as UTF-8 WITHOUT BOM. If remote fetch shows a leading invisible char, strip with -replace "^[\uFEFF]","".
 # (BOM stripped; ensure saved UTF-8 no BOM)
-# Usage: iex ((irm 'https://raw.githubusercontent.com/kayasax/SCIMServer/master/scripts/update-scimserver-func.ps1') -replace "^[\uFEFF]","")
+# Usage: iex ((irm 'https://raw.githubusercontent.com/pranems/SCIMServer/master/scripts/update-scimserver-func.ps1') -replace "^[\uFEFF]","")
 
 function Update-SCIMServer {
     param(
@@ -9,7 +9,7 @@ function Update-SCIMServer {
         [string]$Version,
         [string]$ResourceGroup,
         [string]$AppName,
-        [string]$Registry = "ghcr.io/kayasax",
+        [string]$Registry = "ghcr.io/pranems",
         [string]$NamePattern = 'scim',
         [switch]$NoPrompt,
         [switch]$DryRun,

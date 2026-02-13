@@ -55,8 +55,8 @@ git push origin test/collision-ui-improvements
 ```
 
 **GitHub Actions automatically builds** and pushes image as:
-- `ghcr.io/kayasax/scimserver:test-collision-ui-improvements`
-- `ghcr.io/kayasax/scimserver:sha-abc123def`
+- `ghcr.io/pranems/scimserver:test-collision-ui-improvements`
+- `ghcr.io/pranems/scimserver:sha-abc123def`
 
 ### Step 2: Deploy Test Image to Your Environment
 
@@ -105,17 +105,17 @@ git merge test/collision-ui-improvements
 git push origin master
 
 # Bump version
-# Edit api/package.json and web/package.json: "version": "0.8.15"
+# Edit api/package.json and web/package.json: "version": "0.9.1"
 git add api/package.json web/package.json
-git commit -m "chore: bump version to 0.8.15"
+git commit -m "chore: bump version to 0.9.1"
 git push
 
 # Create release tag (triggers production build with 'latest' tag)
-git tag -a v0.8.15 -m "v0.8.15 - Collision testing improvements"
-git push origin v0.8.15
+git tag -a v0.9.1 -m "v0.9.1 - Performance & compliance improvements"
+git push origin v0.9.1
 
 # Create GitHub Release (triggers update notifications)
-# Go to: https://github.com/kayasax/SCIMServer/releases/new
+# Go to: https://github.com/pranems/SCIMServer/releases/new
 ```
 
 ---
@@ -126,10 +126,10 @@ git push origin v0.8.15
 
 Instead of pushing a branch, trigger build manually:
 
-1. Go to: https://github.com/kayasax/SCIMServer/actions/workflows/build-test.yml
+1. Go to: https://github.com/pranems/SCIMServer/actions/workflows/build-test.yml
 2. Click "Run workflow"
 3. Enter test tag suffix (e.g., "manual-test")
-4. Builds as: `ghcr.io/kayasax/scimserver:test-manual-test`
+4. Builds as: `ghcr.io/pranems/scimserver:test-manual-test`
 
 ### Create Test Revision (A/B Testing)
 
@@ -156,7 +156,7 @@ az containerapp revision deactivate -n scimserver-app -g scimserver-rg --revisio
 
 Or specific version:
 ```powershell
-.\scripts\test-update.ps1 -TestTag "0.8.15"
+.\.scripts\test-update.ps1 -TestTag "0.9.1"
 ```
 
 ---
@@ -170,8 +170,8 @@ Or specific version:
 **Does NOT tag:** `latest` (no update notifications)
 
 ### `build-and-push.yml` (Production Release)
-**Trigger:** Push tag matching `v*` (e.g., `v0.8.15`)
-**Tags:** `0.8.15`, `0.8`, `latest`
+**Trigger:** Push tag matching `v*` (e.g., `v0.9.1`)
+**Tags:** `0.9.1`, `0.9`, `latest`
 **Purpose:** Official releases
 **Does tag:** `latest` (triggers update notifications)
 
@@ -199,7 +199,7 @@ Or specific version:
 - [ ] Lint passes (`cd api && npm run lint`) — 0 errors expected (48 warnings OK)
 - [ ] Backend compiles (`cd api && npm run build`)
 - [ ] Frontend compiles (`cd web && npm run build`)
-- [ ] Unit tests pass (`cd api && npm test`) — 492 unit tests
+- [ ] Unit tests pass (`cd api && npm test`) — 648 unit tests (19 suites)
 - [ ] Live integration tests pass (`.\scripts\live-test.ps1`) — 212 assertions
 - [ ] Live tests pass in verbose mode (`.\scripts\live-test.ps1 -Verbose`) — intercepted API output
 - [ ] Local testing done (if possible)
@@ -209,8 +209,8 @@ Or specific version:
 - [ ] Database operations verified
 
 ### Version Bumping
-- **Patch** (0.8.15 → 0.8.16): Bug fixes, small improvements
-- **Minor** (0.8.15 → 0.9.0): New features, non-breaking changes
+- **Patch** (0.9.1 → 0.9.2): Bug fixes, small improvements
+- **Minor** (0.9.1 → 0.10.0): New features, non-breaking changes
 - **Major** (0.9.0 → 1.0.0): Breaking changes, major redesign
 
 ---
@@ -220,12 +220,12 @@ Or specific version:
 ### Test image not built
 **Check:**
 1. Branch name has correct prefix (`test/`, `dev/`, `feature/`)
-2. GitHub Actions tab: https://github.com/kayasax/SCIMServer/actions
+2. GitHub Actions tab: https://github.com/pranems/SCIMServer/actions
 3. Workflow run completed successfully
 
 ### Update fails with "image not found"
 **Fix:**
-1. Verify image exists: https://github.com/kayasax/SCIMServer/pkgs/container/scimserver
+1. Verify image exists: https://github.com/pranems/SCIMServer/pkgs/container/scimserver
 2. Check image is public (or configure GHCR credentials)
 3. Wait for GitHub Actions to finish building
 
@@ -263,4 +263,4 @@ az containerapp revision list -n <app-name> -g <rg> -o table
 
 ---
 
-**Last Updated:** February 2026 | **Version:** 0.8.15
+**Last Updated:** February 2026 | **Version:** 0.9.1

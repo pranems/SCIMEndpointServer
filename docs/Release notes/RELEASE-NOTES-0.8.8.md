@@ -7,7 +7,7 @@
 
 ## Upgrade Command
 ```powershell
-iex (irm 'https://raw.githubusercontent.com/kayasax/SCIMServer/master/scripts/update-scimserver-direct.ps1');
+iex (irm 'https://raw.githubusercontent.com/pranems/SCIMServer/master/scripts/update-scimserver-direct.ps1');
 Update-SCIMServerDirect -Version v0.8.8 -ResourceGroup <rg> -AppName <app> -NoPrompt
 ```
 

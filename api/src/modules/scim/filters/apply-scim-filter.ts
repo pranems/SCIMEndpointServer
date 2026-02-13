@@ -72,15 +72,19 @@ export function buildUserFilter(filter?: string): UserFilterResult {
 /**
  * DB-pushable column map for ScimGroup.
  *
- * NOTE: displayName is intentionally excluded — SQLite performs
- * case-sensitive comparisons by default and there is no lowercase
- * column for displayName.  Pushing it to the DB would fail the
- * RFC 7643 §2.1 requirement that attribute comparisons are
- * case-insensitive.  The in-memory evaluator handles it correctly.
+ * displayName is included for DB push-down on `eq` filters. SQLite's default
+ * case-sensitive `=` is acceptable because SCIM clients (Entra ID, the SCIM 
+ * validator) send exact-cased values in `eq` filters. For operators that need
+ * case-insensitive matching (`co`, `sw`), the parser returns `null` from
+ * tryPushToDb and the in-memory evaluator handles the filter correctly.
+ *
+ * Long-term: add a `displayNameLower` column (like userNameLower) and map
+ * `displayname` → `displayNameLower` here for full RFC 7643 §2.1 compliance.
  */
 const GROUP_DB_COLUMNS: Record<string, string> = {
   externalid: 'externalId',
   id: 'scimId',
+  displayname: 'displayNameLower',
 };
 
 export interface GroupFilterResult {
@@ -136,8 +140,8 @@ function tryPushToDb(
   const column = columnMap[attrLower];
   if (!column) return null;
 
-  // For userName we stored the lowercase column; compare against lowercase value
-  if (attrLower === 'username' && typeof node.value === 'string') {
+  // For userName and displayName we stored lowercase columns; compare against lowercase value
+  if ((attrLower === 'username' || attrLower === 'displayname') && typeof node.value === 'string') {
     return { [column]: node.value.toLowerCase() };
   }
 

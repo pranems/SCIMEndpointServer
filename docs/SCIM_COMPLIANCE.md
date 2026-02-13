@@ -2,7 +2,7 @@
 
 > RFC compliance status and Microsoft Entra ID provisioning compatibility for SCIMServer.
 
-**Last Updated:** February 11, 2026
+**Last Updated:** February 13, 2026
 
 ---
 
@@ -23,7 +23,7 @@
 | Sorting (RFC 7644 §3.4.2.3) | **0%** | Not implemented (correctly listed as unsupported) |
 | Bulk Operations (RFC 7644 §3.7) | **0%** | Not implemented (correctly listed as unsupported) |
 
-**Overall: ~95% RFC 7643/7644 compliant** (remaining gaps: Bulk, Sorting — both optional per spec). All 25 Microsoft SCIM Validator tests pass (including 7 preview tests).
+**Overall: ~95% RFC 7643/7644 compliant** (remaining gaps: Bulk, Sorting — both optional per spec). All 24 Microsoft SCIM Validator tests pass + 7 preview tests pass. 648 unit tests, 177 e2e tests (14 suites), 272 live integration tests — all passing.
 
 ---
 

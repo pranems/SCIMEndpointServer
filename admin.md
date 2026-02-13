@@ -9,7 +9,7 @@ Internal doc for you (the author) – not end-user facing. This captures the exa
 3. Commit & push.
 4. (Optional but recommended when you start using Releases) Create annotated git tag: `git tag -a v0.2.0 -m "v0.2.0"` then `git push origin v0.2.0`.
 5. Build & push image to ACR: `pwsh ./scripts/publish-acr.ps1 -Registry scimserverpublic -ResourceGroup scimserver-rg -Latest` (adds version + latest).
-6. Update Container App: `az containerapp update -n scimserver-prod -g scimserver-rg --image ghcr.io/kayasax/scimserver:0.2.0`.
+6. Update Container App: `az containerapp update -n scimserver-prod -g scimserver-rg --image ghcr.io/pranems/scimserver:0.2.0`.
 7. Open UI → banner should show if newer than running instance.
 8. (Optional) Publish a GitHub Release for richer banner notes.
 
@@ -80,11 +80,11 @@ scimserverpublic.azurecr.io/scimserver:latest
 
 ### 5. Deploy to Azure Container App
 ```powershell
-az containerapp update -n scimserver-prod -g scimserver-rg --image ghcr.io/kayasax/scimserver:0.2.0
+az containerapp update -n scimserver-prod -g scimserver-rg --image ghcr.io/pranems/scimserver:0.2.0
 ```
 To always use the moving pointer (still need manual update):
 ```powershell
-az containerapp update -n scimserver-prod -g scimserver-rg --image ghcr.io/kayasax/scimserver:latest
+az containerapp update -n scimserver-prod -g scimserver-rg --image ghcr.io/pranems/scimserver:latest
 ```
 
 ### 6. Verify
@@ -121,7 +121,7 @@ The hosted script:
 
 **Alternative**: Direct Azure CLI (still supported):
 ```powershell
-az containerapp update -n scimserver-prod -g scimserver-rg --image ghcr.io/kayasax/scimserver:0.2.0
+az containerapp update -n scimserver-prod -g scimserver-rg --image ghcr.io/pranems/scimserver:0.2.0
 ```
 
 ### 7. Rollback
@@ -154,7 +154,7 @@ az containerapp update -n scimserver-prod -g scimserver-rg --image scimserverpub
 
 ### 10. Local Smoke Test of Built Image
 ```powershell
-docker run --rm -p 8080:80 ghcr.io/kayasax/scimserver:0.2.0
+docker run --rm -p 8080:80 ghcr.io/pranems/scimserver:0.2.0
 # Then: curl http://localhost:8080/scim/admin/version (with header if auth required)
 ```
 
@@ -182,7 +182,7 @@ git tag -a v0.2.0 -m "v0.2.0"; git push origin v0.2.0
 pwsh ./scripts/publish-acr.ps1 -Registry scimserverpublic -ResourceGroup scimserver-rg -Latest
 
 # Deploy
-az containerapp update -n scimserver-prod -g scimserver-rg --image ghcr.io/kayasax/scimserver:0.2.0
+az containerapp update -n scimserver-prod -g scimserver-rg --image ghcr.io/pranems/scimserver:0.2.0
 
 # Verify
 az containerapp logs show -n scimserver-prod -g scimserver-rg --tail 50

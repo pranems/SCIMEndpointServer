@@ -2,8 +2,8 @@
   "info": {
     "name": "SCIM v2 - Example Collection",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-    "version": { "major": 1, "minor": 2 },
-    "description": "SCIM 2.0 test collection — passes all 25 Microsoft SCIM Validator tests. Includes RFC 7644 §3.4.3 POST /.search, §3.4.2.5 attribute projection, and §3.14 ETag support."
+    "version": { "major": 1, "minor": 3 },
+    "description": "SCIM 2.0 test collection — passes all 24 Microsoft SCIM Validator tests + 7 preview. Includes RFC 7644 §3.4.3 POST /.search, §3.4.2.5 attribute projection, and §3.14 ETag support."
   },
   "item": [
     {

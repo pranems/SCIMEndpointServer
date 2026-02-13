@@ -10,7 +10,7 @@ Adds the `@azure/identity` dependency required for managed identity authenticati
 
 ## Upgrade
 ```
-iex (irm 'https://raw.githubusercontent.com/kayasax/SCIMServer/master/scripts/update-scimserver-direct.ps1'); Update-SCIMServerDirect -Version v0.8.4 -ResourceGroup <rg> -AppName <app> -NoPrompt -ShowCurrent
+iex (irm 'https://raw.githubusercontent.com/pranems/SCIMServer/master/scripts/update-scimserver-direct.ps1'); Update-SCIMServerDirect -Version v0.8.4 -ResourceGroup <rg> -AppName <app> -NoPrompt -ShowCurrent
 ```
 
 ## Verification

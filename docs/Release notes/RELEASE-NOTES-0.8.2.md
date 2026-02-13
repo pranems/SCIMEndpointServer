@@ -10,11 +10,11 @@
 
 ## One‑Liner (Direct)
 ```powershell
-iex (irm 'https://raw.githubusercontent.com/kayasax/SCIMServer/master/scripts/update-scimserver-direct.ps1'); Update-SCIMServerDirect -Version v0.8.2 -ResourceGroup <rg> -AppName <app> -NoPrompt -ShowCurrent
+iex (irm 'https://raw.githubusercontent.com/pranems/SCIMServer/master/scripts/update-scimserver-direct.ps1'); Update-SCIMServerDirect -Version v0.8.2 -ResourceGroup <rg> -AppName <app> -NoPrompt -ShowCurrent
 ```
 
 ## Container Image
-`ghcr.io/kayasax/scimserver:0.8.2`
+`ghcr.io/pranems/scimserver:0.8.2`
 
 ## Upgrade Notes
 * Redeploy once to populate new metadata env vars.

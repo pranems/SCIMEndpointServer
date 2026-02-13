@@ -1,6 +1,6 @@
 # SCIMServer — Logging, Traceability & Observability Guide
 
-> **Version**: 1.0 · **Date**: February 2026 · **Applies to**: SCIMServer v0.8.15+
+> **Version**: 1.1 · **Date**: February 2026 · **Applies to**: SCIMServer v0.9.1+
 
 ---
 
