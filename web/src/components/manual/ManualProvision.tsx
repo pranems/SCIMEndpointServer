@@ -150,7 +150,7 @@ export const ManualProvision: React.FC = () => {
               </ul>
 
               <p>
-                <a href="https://github.com/kayasax/SCIMServer/blob/master/docs/COLLISION-TESTING-GUIDE.md" target="_blank" rel="noopener noreferrer">
+                <a href="https://github.com/pranems/SCIMServer/blob/master/docs/COLLISION-TESTING-GUIDE.md" target="_blank" rel="noopener noreferrer">
                   📚 Full collision testing guide
                 </a>
               </p>

@@ -39,7 +39,14 @@ resource vnet 'Microsoft.Network/virtualNetworks@2023-09-01' = {
         name: infrastructureSubnetName
         properties: {
           addressPrefix: infrastructureSubnetPrefix
-          delegations: []
+          delegations: [
+            {
+              name: 'Microsoft.App.environments'
+              properties: {
+                serviceName: 'Microsoft.App/environments'
+              }
+            }
+          ]
           privateEndpointNetworkPolicies: 'Disabled'
           privateLinkServiceNetworkPolicies: 'Disabled'
         }
@@ -48,7 +55,14 @@ resource vnet 'Microsoft.Network/virtualNetworks@2023-09-01' = {
         name: workloadSubnetName
         properties: {
           addressPrefix: workloadSubnetPrefix
-          delegations: []
+          delegations: [
+            {
+              name: 'Microsoft.App.environments'
+              properties: {
+                serviceName: 'Microsoft.App/environments'
+              }
+            }
+          ]
           privateEndpointNetworkPolicies: 'Disabled'
           privateLinkServiceNetworkPolicies: 'Disabled'
         }

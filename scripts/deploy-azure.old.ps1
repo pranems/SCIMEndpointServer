@@ -70,9 +70,9 @@ Write-Host ""
 
 # Deploy using pre-built image from GitHub Container Registry
 Write-Host "Deploying Container App with pre-built image..." -ForegroundColor Yellow
-Write-Host "Using latest tested image: ghcr.io/kayasax/scimserver:latest" -ForegroundColor Gray
+Write-Host "Using latest tested image: ghcr.io/pranems/scimserver:latest" -ForegroundColor Gray
 
-$ImageName = "ghcr.io/kayasax/scimserver:latest"
+$ImageName = "ghcr.io/pranems/scimserver:latest"
 
 az containerapp up `
     --name $AppName `

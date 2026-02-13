@@ -1,4 +1,4 @@
-﻿import { Injectable, Logger } from '@nestjs/common';
+﻿import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
 
 import { PrismaService } from '../prisma/prisma.service';
@@ -16,11 +16,25 @@ export interface CreateRequestLogOptions {
 }
 
 @Injectable()
-export class LoggingService {
+export class LoggingService implements OnModuleDestroy {
   private readonly logger = new Logger(LoggingService.name);
+
+  // ── Buffered logging to reduce SQLite write contention ──
+  // Instead of writing per-request (2 writes each), we accumulate in memory
+  // and flush in a single batch INSERT periodically or when the buffer is full.
+  private logBuffer: Array<Prisma.RequestLogCreateInput & { _identifier?: string }> = [];
+  private flushTimer: ReturnType<typeof setTimeout> | null = null;
+  private flushInProgress = false;
+  private static readonly FLUSH_INTERVAL_MS = 3_000;  // flush every 3 seconds
+  private static readonly MAX_BUFFER_SIZE = 50;        // or when 50 entries accumulate
 
   constructor(private readonly prisma: PrismaService) {}
 
+  /**
+   * Buffer a request log entry. The entry is written to the DB asynchronously
+   * in batches to avoid per-request SQLite write-lock contention with SCIM
+   * transactions.
+   */
   async recordRequest({
     method,
     url,
@@ -45,7 +59,7 @@ export class LoggingService {
       if (idCandidate && typeof idCandidate === 'string') identifier = idCandidate;
     } catch {/* swallow */}
 
-    const data: Prisma.RequestLogCreateInput = {
+    const data: Prisma.RequestLogCreateInput & { _identifier?: string } = {
       method,
       url,
       status: status ?? null,
@@ -55,24 +69,87 @@ export class LoggingService {
       responseHeaders: this.stringifyValue(responseHeaders),
       responseBody: this.stringifyValue(responseBody),
       errorMessage,
-      errorStack
+      errorStack,
+      _identifier: identifier,
     };
 
+    this.logBuffer.push(data);
+
+    // Flush immediately if buffer is full, otherwise schedule a delayed flush
+    if (this.logBuffer.length >= LoggingService.MAX_BUFFER_SIZE) {
+      void this.flushLogs();
+    } else if (!this.flushTimer) {
+      this.flushTimer = setTimeout(() => void this.flushLogs(), LoggingService.FLUSH_INTERVAL_MS);
+    }
+  }
+
+  /**
+   * Flush the accumulated log buffer to SQLite in a single batch.
+   * Uses createMany for the bulk insert, then a single raw UPDATE for identifiers.
+   */
+  async flushLogs(): Promise<void> {
+    if (this.flushInProgress || this.logBuffer.length === 0) return;
+    this.flushInProgress = true;
+
+    // Drain the buffer atomically
+    const batch = this.logBuffer.splice(0);
+    if (this.flushTimer) {
+      clearTimeout(this.flushTimer);
+      this.flushTimer = null;
+    }
+
+    // Separate identifier metadata from Prisma create input
+    const identifiers: Array<{ index: number; identifier: string }> = [];
+    const createData: Prisma.RequestLogCreateManyInput[] = batch.map((entry, i) => {
+      if (entry._identifier) {
+        identifiers.push({ index: i, identifier: entry._identifier });
+      }
+      // Strip the non-Prisma field before passing to createMany
+      const { _identifier, ...prismaData } = entry;
+      return prismaData as Prisma.RequestLogCreateManyInput;
+    });
+
     try {
-      const created = await this.prisma.requestLog.create({ data });
-      if (identifier) {
-        // Best-effort: attempt to persist identifier via raw SQL (ignore failure if column absent)
+      // Single batch insert (1 write instead of N*2 writes)
+      await this.prisma.requestLog.createMany({ data: createData });
+
+      // Best-effort: backfill identifiers. Since createMany doesn't return IDs
+      // in SQLite, we update the most recent N rows in one raw statement.
+      if (identifiers.length > 0) {
+        // Fetch the last N created rows (ordered by rowid DESC) to correlate
         try {
-          await this.prisma.$executeRawUnsafe(
-            'UPDATE RequestLog SET identifier = ? WHERE id = ?',
-            identifier,
-            created.id
+          const recentRows: Array<{ id: string }> = await this.prisma.$queryRawUnsafe(
+            `SELECT id FROM RequestLog ORDER BY rowid DESC LIMIT ${batch.length}`
           );
-        } catch {/* ignore if column missing */}
+          // recentRows[0] = newest (last in batch), so reverse to align with batch order
+          const ordered = [...recentRows].reverse();
+          for (const { index, identifier } of identifiers) {
+            if (ordered[index]) {
+              await this.prisma.$executeRawUnsafe(
+                'UPDATE RequestLog SET identifier = ? WHERE id = ?',
+                identifier,
+                ordered[index].id,
+              );
+            }
+          }
+        } catch {
+          // Best-effort: identifier backfill is non-critical
+        }
       }
     } catch (persistError) {
-      this.logger.error('Failed to persist request log', persistError as Error);
+      this.logger.error('Failed to flush request log batch', persistError as Error);
+    } finally {
+      this.flushInProgress = false;
     }
+  }
+
+  /** Flush remaining log entries on application shutdown. */
+  async onModuleDestroy(): Promise<void> {
+    if (this.flushTimer) {
+      clearTimeout(this.flushTimer);
+      this.flushTimer = null;
+    }
+    await this.flushLogs();
   }
 
   async clearLogs(): Promise<number> {

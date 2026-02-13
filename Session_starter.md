@@ -4,7 +4,15 @@ This file intentionally trimmed for clarity. Full historic log kept in git histo
 
 ### Recent Key Achievements (Chronological)
 | Date | Achievement |
-|------|-------------|| 2026-02-14 | 🧹 **ESLint Hardened:** `.eslintrc.cjs` updated for @typescript-eslint 8.x — 223→0 errors (8 source fixes + config overrides), 48 remaining warnings (intentional `any` + test scaffolding). `fast-xml-parser` CVE patched. || 2026-02-14 | � **Major Dependency Upgrade:** Node 22-alpine Docker, NestJS 10→11, Prisma 5→6, TypeScript 5.4→5.9, tsconfig targets es2022. 492 unit + 154 e2e + 212 live tests passing (local & Docker) |
+|------|-------------|
+| 2026-02-13 | 🎯 **SCIM VALIDATOR 24/24:** Added `displayNameLower` column to ScimGroup, buffered request logging, moved member resolution outside transactions — all 24 SCIM validator tests pass, 648 unit tests pass (v0.9.1) |
+| 2026-02-15 | 🔄 **FULL REPO MIGRATION:** All references migrated from `kayasax` to `pranems` GitHub account (35+ files, 92 occurrences) |
+| 2026-02-15 | 📖 **AZURE DEPLOYMENT GUIDE:** Created comprehensive `docs/AZURE_DEPLOYMENT_AND_USAGE_GUIDE.md` with architecture diagrams, step-by-step deployment, Entra ID setup, usage guide, troubleshooting, and cost estimates |
+| 2026-02-15 | 📝 **README.md REWRITTEN:** Complete rewrite with architecture diagram, feature tables, Docker/Azure sections, documentation index, and project structure |
+| 2026-02-15 | 📝 **DEPLOYMENT.md REWRITTEN:** Streamlined all deployment methods (Azure/Docker/Local) with comparison table, CI/CD pipeline info, and links to detailed guide |
+| 2026-02-15 | 🔧 **VS CODE DEBUG CONFIGS:** Added `.vscode/launch.json` with 3 debug configurations (launch, launch+log, attach) and `start:debug:log` npm script |
+| 2026-02-15 | ✅ **CI/CD VERIFIED:** GitHub Actions `build-test.yml` and `publish-ghcr.yml` confirmed pointing to `pranems/scimserver` |
+| 2026-02-14 | 🧹 **ESLint Hardened:** `.eslintrc.cjs` updated for @typescript-eslint 8.x — 223→0 errors (8 source fixes + config overrides), 48 remaining warnings (intentional `any` + test scaffolding). `fast-xml-parser` CVE patched. || 2026-02-14 | � **Major Dependency Upgrade:** Node 22-alpine Docker, NestJS 10→11, Prisma 5→6, TypeScript 5.4→5.9, tsconfig targets es2022. 492 unit + 154 e2e + 212 live tests passing (local & Docker) |
 | 2026-02-14 | �📝 **Docs Updated to Current State:** SCIM_COMPLIANCE (filtering 85→100%), RECOMMENDED_DESIGN_IMPROVEMENTS (§17.1 gap analysis + §18 roadmap refreshed), INDEX.md, TESTING-WORKFLOW.md |
 | 2026-02-14 | 📦 **JSON Consolidation:** 32→19 JSON files (41% reduction) — merged PATCH examples, removed duplicates, fixed OpenAPI /Bulk + bulk.supported, fixed update-endpoint strictMode |
 | 2026-02-11 | 📚 **Docs Consolidation:** 34→21 markdown files (~45% line reduction) — merged redundant guides, removed stale files |
@@ -62,12 +70,12 @@ This file intentionally trimmed for clarity. Full historic log kept in git histo
 | 2025-09-28 | PATCH Add operation fix (Entra compatibility) |
 | 2025-09-27 | v0.3.0: Full SCIM 2.0 compliance baseline |
 
-Current Version: v0.8.15 (collision testing quick-start + force re-POST guidance)
+Current Version: v0.9.1 (displayNameLower + buffered logging + member resolution fixes)
 
 ---
 
 ## Status
-Production Ready (v0.8.15) — **Phase 1 RFC Compliance complete** (Feb 2026). Full SCIM filter parser (10 operators), POST /.search, ETag conditional requests, attribute projection, centralized error handling. 492 unit tests, 154 e2e tests, 212 live integration tests, all 25 Microsoft SCIM Validator tests passing. Documentation and JSON examples consolidated and aligned to current implementation.
+Production Ready (v0.9.1) — **Phase 1 RFC Compliance complete** (Feb 2026). Full SCIM filter parser (10 operators), POST /.search, ETag conditional requests, attribute projection, centralized error handling. 648 unit tests (19 suites), 177 e2e tests (14 suites), 272 live integration tests, all 24 Microsoft SCIM Validator tests passing + 7 preview. Documentation and JSON examples consolidated and aligned to current implementation.
 
 ## Quick Commands
 ```powershell
@@ -75,7 +83,7 @@ Production Ready (v0.8.15) — **Phase 1 RFC Compliance complete** (Feb 2026). F
 pwsh ./scripts/publish-acr.ps1 -Registry scimserverpublic -ResourceGroup scimserver-rg -Latest
 
 # Customer update to latest (example)
-iex (irm 'https://raw.githubusercontent.com/kayasax/SCIMServer/master/scripts/update-scimserver-direct.ps1'); Update-SCIMServerDirect -Version v0.8.15 -ResourceGroup <rg> -AppName <app> -NoPrompt
+iex (irm 'https://raw.githubusercontent.com/pranems/SCIMServer/master/scripts/update-scimserver-direct.ps1'); Update-SCIMServerDirect -Version v0.9.1 -ResourceGroup <rg> -AppName <app> -NoPrompt
 
 > NOTE: Direct upgrade one‑liner integrated into UI copy button; user has not yet tested the copied command end‑to‑end.
 ```
@@ -151,9 +159,15 @@ Implemented TDD approach with comprehensive test coverage:
 ---
 
 ## Current Focus
-Phase 1 complete. Docs and JSON examples consolidated and updated to match actual repo state. Next: Phase 2 planning (schema-driven validation), CI test gate (no GitHub Actions workflow currently runs tests), port alignment (live-test defaults to 6000, docker-compose to 3000).
+Phase 1 complete. Full repo migration from `kayasax` to `pranems` GitHub account done. Documentation overhauled: new Azure Deployment & Usage Guide, rewritten README.md and DEPLOYMENT.md. GitHub Actions CI/CD pipelines (`build-test.yml`, `publish-ghcr.yml`) verified for `pranems/SCIMServer`. VS Code debug configurations added. Next: Phase 2 planning (schema-driven validation), CI test gate improvements, port alignment (live-test defaults to 6000, docker-compose to 3000).
 
 ## Next Steps / Backlog
+- [x] ✅ COMPLETED - Migrate all repo references from kayasax to pranems
+- [x] ✅ COMPLETED - Create comprehensive Azure Deployment & Usage Guide (docs/AZURE_DEPLOYMENT_AND_USAGE_GUIDE.md)
+- [x] ✅ COMPLETED - Rewrite README.md for current project state
+- [x] ✅ COMPLETED - Rewrite DEPLOYMENT.md with all deployment methods
+- [x] ✅ COMPLETED - Add VS Code debug configurations (.vscode/launch.json)
+- [x] ✅ COMPLETED - Verify GitHub Actions workflows point to pranems/scimserver
 - [ ] Validate copied direct upgrade command in production environment
 - [ ] Send guidance to existing customers on the v0.8.13 direct-update changes and the need to store generated JWT/OAuth secrets
 - [ ] Add rollback command generation (capture previous image tag)
@@ -179,9 +193,10 @@ Phase 1 complete. Docs and JSON examples consolidated and updated to match actua
 
 **Deployment:**
 - Docker multi-stage build with proper permissions
-- Azure Container Registry (public, anonymous pull)
+- GitHub Container Registry (`ghcr.io/pranems/scimserver`, public, anonymous pull)
 - Azure Container Apps for production hosting
 - PowerShell automation for customer updates
+- Comprehensive deployment guide: `docs/AZURE_DEPLOYMENT_AND_USAGE_GUIDE.md`
 
 ## Architecture Snapshot
 | Date | Achievement |
@@ -215,7 +230,7 @@ Phase 1 complete. Docs and JSON examples consolidated and updated to match actua
 | 2025-09-26 | 🧩 Added dynamic upgrade helper script (GitHub Releases based) |
 | 2025-09-26 | 🎨 Microsoft-inspired theming completed (dark/light parity, refined filters, log modal polish) |
 | 2025-09-26 | 🔍 Admin log noise hidden from UI; SCIM request list now focused on provisioning traffic |
-| 2025-12-29 | � **GITHUB REGISTRY MIGRATION** - Migrated from ACR to ghcr.io/kayasax/scimserver with automated builds |
+| 2025-12-29 | � **GITHUB REGISTRY MIGRATION** - Migrated from ACR to ghcr.io/pranems/scimserver with automated builds |
 | 2025-12-26 | 🛠️ **UNIFIED DOCKERFILE** - Multi-stage build (web+API) with fixed SQLite permissions |
 | 2025-12-26 | 🚀 **CONTAINER DEPLOYMENT** - Production deployment working via public registry |
 | 2025-12-26 | 🔧 **SQLITE PERMISSIONS FIX** - Resolved readonly database errors with proper user ownership |
@@ -241,7 +256,7 @@ Deferred:
 ## Dev Quick Ref
 Backend: `cd api && npm run start:dev`
 Frontend: `cd web && npm run dev`
-Unit Tests: `cd api && npm test` (492 tests)
+Unit Tests: `cd api && npm test` (648 tests, 19 suites)
 Live Tests: `.\scripts\live-test.ps1` (212 assertions)
 Live Tests (verbose): `.\scripts\live-test.ps1 -Verbose`
 
@@ -277,9 +292,11 @@ Live Tests (verbose): `.\scripts\live-test.ps1 -Verbose`
 
 **DevOps Ready:**
 - Docker containerization with proper permissions
-- Public Azure Container Registry
+- GitHub Container Registry (`ghcr.io/pranems/scimserver`)
+- GitHub Actions CI/CD (`build-test.yml`, `publish-ghcr.yml`)
 - One-click customer updates via PowerShell
 - Automated CI/CD with GitHub releases
+- VS Code debug configurations (launch, attach, log-to-file)
 
 **Performance Insights:**
 - Expected request volume is low; focus on clarity of logs over throughput.

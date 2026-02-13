@@ -1,122 +1,129 @@
-# 🚀 SCIMServer Deployment Options
+# SCIMServer Deployment Options
 
-This document covers all deployment methods for SCIMServer. For the quickest start, use the container deployment method described in the main README.
+This document covers all deployment methods for SCIMServer. For the quickest start, use the Azure deployment described in the main [README.md](./README.md). For the most comprehensive Azure guide with architecture diagrams, see [docs/AZURE_DEPLOYMENT_AND_USAGE_GUIDE.md](docs/AZURE_DEPLOYMENT_AND_USAGE_GUIDE.md).
 
 ---
 
-## 📦 **Container Deployment** (Recommended)
+## Azure Container Apps (Recommended for Production)
 
-### **Azure Container Apps** (Production Ready)
-Deploy to Azure Container Apps for production use with automatic scaling and enterprise features:
+### One-Liner Bootstrap
 
 ```powershell
-# Deploy with the included script
-.\scripts\deploy-azure.ps1 -ResourceGroup "scim-rg" -AppName "scimserver-prod" -ScimSecret "your-secure-secret"
-
-# Or use the quick deploy script
-iex (irm 'https://raw.githubusercontent.com/kayasax/SCIMServer/master/deploy.ps1')
+iex (iwr https://raw.githubusercontent.com/pranems/SCIMServer/master/bootstrap.ps1).Content
 ```
 
-> The deployment script prints three secrets at the end (SCIM bearer, JWT signing, OAuth client). Store each value securely—you'll need them for future updates or to regenerate tokens.
+Prompts for Resource Group, App Name, Region, and SCIM Secret. Provisions all Azure resources automatically (VNet, Blob Storage with private endpoint, Container Apps Environment, Container App, Log Analytics).
 
-**Benefits:**
-- **🔒 Enterprise Security**: Automatic HTTPS, managed certificates, secure secrets, and private storage endpoints by default
-- **📈 Smart Scaling**: Automatically scales from 0 to handle any load
-- **💰 Cost Efficient**: Pay only when active - perfect for testing and production
-- **🌐 Global Reach**: Deploy to any Azure region worldwide
-- **🔧 Zero Maintenance**: Automatic updates, monitoring, and health checks
+### Scripted Deploy
 
-> ℹ️ **New in v0.8.4+:** `deploy-azure.ps1` now provisions an isolated virtual network, private DNS zone, and blob storage private endpoint so the snapshot container never requires public access. If you're upgrading an older deployment, recreate the Container Apps environment to pick up the VNet integration.
+```powershell
+.\scripts\deploy-azure.ps1 `
+  -ResourceGroup "scimserver-rg" `
+  -AppName "scimserver-prod" `
+  -Location "eastus" `
+  -ScimSecret "your-secure-secret"
+```
 
-### **Docker Compose** (Self-Hosted)
-For on-premises or custom cloud deployments:
+Optional parameters: `-JwtSecret`, `-OauthClientSecret`, `-ImageTag`, `-BlobBackupAccount`, `-BlobBackupContainer`.
+
+> The deployment script prints three secrets at the end (SCIM bearer, JWT signing, OAuth client). **Store each value securely** — they are not stored anywhere else.
+
+### What Gets Deployed
+
+| Step | Resource | Bicep Template |
+|------|----------|----------------|
+| 1 | Resource Group | `az group create` |
+| 2 | VNet + 3 subnets + Private DNS | `infra/networking.bicep` |
+| 3 | Storage Account + Private Endpoint | `infra/blob-storage.bicep` |
+| 4 | Container Apps Environment + Log Analytics | `infra/containerapp-env.bicep` |
+| 5 | Container App (SCIMServer) | `infra/containerapp.bicep` |
+| 6 | RBAC role assignment (Storage Blob Data Contributor) | `az role assignment create` |
+
+### Benefits
+
+- **HTTPS**: Automatic TLS certificate management
+- **VNet Isolation**: All inter-service traffic stays within the virtual network
+- **Private Storage**: Blob storage accessible only via private endpoint
+- **Scale to Zero**: Minimal cost when idle
+- **Managed Identity**: No storage keys — system-assigned identity with RBAC
+- **Log Analytics**: Centralized logging with 30-day retention
+
+> **New in v0.8.4+**: `deploy-azure.ps1` provisions an isolated virtual network, private DNS zone, and blob storage private endpoint so the snapshot container never requires public access.
+
+---
+
+## Docker Compose (Self-Hosted)
 
 ```yaml
 version: '3.8'
 services:
   scimserver:
-    image: ghcr.io/kayasax/scimserver:latest
+    image: ghcr.io/pranems/scimserver:latest
     ports:
-      - "3000:3000"
+      - "3000:80"
     environment:
       - SCIM_SHARED_SECRET=your-secret-here
       - JWT_SECRET=your-jwt-secret
       - OAUTH_CLIENT_SECRET=your-oauth-client-secret
-      - DATABASE_URL=file:/app/data/scim.db
+      - DATABASE_URL=file:/tmp/local-data/scim.db
     volumes:
-      - ./data:/app/data
+      - scim-data:/app/data
+volumes:
+  scim-data:
 ```
 
 ```powershell
-# Start with Docker Compose
 docker-compose up -d
 ```
 
-### **Standalone Docker**
-Simple Docker deployment:
+## Standalone Docker
 
 ```powershell
-# Pull and run the container
-docker run -d -p 3000:3000 \
-  -e SCIM_SHARED_SECRET=your-secret \
-  -e JWT_SECRET=your-jwt-secret \
-  -e OAUTH_CLIENT_SECRET=your-oauth-client-secret \
-  -v scim-data:/app/data \
-  ghcr.io/kayasax/scimserver:latest
+docker run -d -p 3000:80 `
+  -e SCIM_SHARED_SECRET=your-secret `
+  -e JWT_SECRET=your-jwt-secret `
+  -e OAUTH_CLIENT_SECRET=your-oauth-client-secret `
+  -v scim-data:/app/data `
+  ghcr.io/pranems/scimserver:latest
 ```
 
 ---
 
-## 🌐 **Hosted Service** (Zero Setup)
+## Local Development
 
-For immediate testing and team collaboration:
+### Prerequisites
 
-### **Free Hosted Instance**
-- **URL**: https://scimserver.azurewebsites.net
-- **No Setup Required**: Just configure your Enterprise App to point to this URL
-- **Team Sharing**: Multiple team members can use the same instance
-- **Perfect For**: Testing, demonstrations, quick prototyping
-
-### **Configuration**
-1. **Tenant URL**: `https://scimserver.azurewebsites.net/scim`
-2. **Secret Token**: `changeme` (default) or contact us for a custom token
-3. **Monitoring URL**: `https://scimserver.azurewebsites.net`
-
----
-
-## 🔧 **Local Development**
-
-For developers who want to customize or contribute to SCIMServer:
-
-### **Prerequisites**
 - Node.js 22+ and npm
 - Git
-- PowerShell (for Windows) or bash (for Linux/Mac)
+- PowerShell (Windows) or bash (macOS/Linux)
 
-### **Quick Start**
+### Quick Start
+
 ```powershell
-# Clone and setup
-git clone https://github.com/kayasax/SCIMServer.git
+git clone https://github.com/pranems/SCIMServer.git
 cd SCIMServer
 .\setup.ps1 -TestLocal
 ```
 
-### **Manual Setup**
+### Manual Setup
+
 ```powershell
-# Backend (API)
+# Backend API (terminal 1)
 cd api
 npm install
-npm run build
+npx prisma generate
+npx prisma migrate dev
 npm run start:dev
 
-# Frontend (Web UI) - In another terminal
+# Frontend Web UI (terminal 2)
 cd web
 npm install
 npm run dev
 ```
 
-### **Environment Configuration**
-Create `api/.env`:
+### Environment Configuration
+
+**api/.env**:
 ```env
 SCIM_SHARED_SECRET=changeme
 JWT_SECRET=changeme-jwt
@@ -126,86 +133,103 @@ DATABASE_URL=file:./dev.db
 CORS_ORIGINS=http://localhost:5173
 ```
 
-Create `web/.env`:
+**web/.env**:
 ```env
 VITE_API_BASE=http://localhost:3000
 VITE_SCIM_TOKEN=changeme
 ```
 
-### **Development URLs**
+### Development URLs
+
 - **SCIM API**: http://localhost:3000/scim
 - **Web UI**: http://localhost:5173
-- **Monitoring**: http://localhost:5173
+
+### Debug with Log File
+
+```powershell
+cd api
+npm run start:debug 2>&1 | Tee-Object -FilePath scimserver.log
+# Then attach VS Code debugger via "Attach to Running API" (port 9229)
+```
 
 ---
 
-## 📊 **Deployment Comparison**
+## Deployment Comparison
 
-| Method | Setup Time | Cost | Scalability | Maintenance | Best For |
-|--------|------------|------|-------------|-------------|----------|
-| **Hosted Service** | 0 min | Free | Shared | None | Testing, demos |
-| **Azure Container Apps** | 5 min | ~$10/month | Auto | Minimal | Production |
-| **Docker Compose** | 10 min | Infrastructure cost | Manual | Medium | Self-hosted |
-| **Local Development** | 15 min | Free | Single instance | High | Development |
+| Method | Setup Time | Monthly Cost | Scalability | Maintenance | Best For |
+|--------|------------|--------------|-------------|-------------|----------|
+| **Azure Container Apps** | 5 min | ~$13-28 | Auto | Minimal | Production |
+| **Docker Compose** | 10 min | Infra cost | Manual | Medium | Self-hosted |
+| **Standalone Docker** | 5 min | Infra cost | Manual | Medium | Quick test |
+| **Local Development** | 15 min | Free | Single | High | Development |
 
 ---
 
-## 🛠️ **Troubleshooting**
+## Container Image
 
-### **Common Issues**
+- **Registry**: GitHub Container Registry
+- **Image**: `ghcr.io/pranems/scimserver`
+- **Tags**: `latest`, version tags (e.g., `0.9.1`), test tags (`test-<branch>`)
+- **Base**: `node:22-alpine`
+- **Size**: ~350 MB
+- **Port**: 80 (internal)
+
+### CI/CD Pipelines
+
+| Workflow | Trigger | Image Tag |
+|----------|---------|-----------|
+| `publish-ghcr.yml` | Manual dispatch (version input) | `<version>`, optionally `latest` |
+| `build-test.yml` | Push to `test/**`, `dev/**`, `feature/**` | `test-<branch>` |
+
+---
+
+## Updating an Existing Deployment
+
+```powershell
+# Auto-discovery update
+iex (irm 'https://raw.githubusercontent.com/pranems/SCIMServer/master/scripts/update-scimserver-func.ps1'); `
+  Update-SCIMServer -Version v0.9.1
+
+# Or manual image update
+az containerapp update -n scimserver-prod -g scimserver-rg --image ghcr.io/pranems/scimserver:0.9.1
+```
+
+---
+
+## Troubleshooting
 
 | Issue | Solution |
 |-------|----------|
-| Container won't start | Check environment variables and port availability |
-| SCIM connection fails | Verify URL is accessible and secret token matches |
+| Container won't start | Check `az containerapp logs show -n <app> -g <rg>` for errors |
+| SCIM connection fails | Verify URL ends with `/scim/v2` and secret token matches |
 | UI not loading | Check CORS configuration and API base URL |
-| Database errors | Ensure data directory is writable |
+| Database errors | Container runs `prisma migrate deploy` on startup; check entrypoint logs |
+| Blob backup failures | Verify managed identity has `Storage Blob Data Contributor` role |
 
-### **Debugging Commands**
+### Useful Commands
+
 ```powershell
-# Check container logs
-docker logs <container-id>
+# Stream container logs
+az containerapp logs show -n <app-name> -g <resource-group> --follow
 
 # Test SCIM endpoint
-curl -H "Authorization: Bearer your-secret" https://your-url/scim/Users
+curl -H "Authorization: Bearer your-secret" https://your-url/scim/v2/ServiceProviderConfig
 
-# Check container health
-docker inspect <container-id>
+# Check container app status
+az containerapp show -n <app-name> -g <resource-group> --query "properties.runningStatus"
 ```
 
 ---
 
-## 🔗 **Next Steps**
+## Next Steps
 
-Once deployed, configure your Microsoft Entra Enterprise Application:
+After deployment, configure Microsoft Entra provisioning:
 
-1. **Create Enterprise App** in Azure Portal
-2. **Set Tenant URL** to your deployment endpoint + `/scim`
-3. **Configure Secret Token** to match your deployment
-4. **Test Connection** and start provisioning
-5. **Monitor Activity** through the web dashboard
+1. **Create Enterprise App** → Azure Portal → Entra ID → Enterprise Applications
+2. **Set Tenant URL** → `https://<your-app-url>/scim/v2`
+3. **Set Secret Token** → SCIM secret from deployment output
+4. **Test Connection** → expect success
+5. **Turn Provisioning ON** → assign users/groups
+6. **Monitor** → open app URL in browser for real-time dashboard
 
-For detailed configuration steps, see the main [README.md](./README.md).
-
-Simply share your container URL with colleagues:
-- They can access the monitoring UI directly (no setup required)
-- Full real-time visibility into your provisioning activities
-- No local installation needed
-
-## 🔄 Updates
-
-To update your deployment:
-```powershell
-git pull
-.\setup.ps1 -DeployContainer
-```
-
-## 🆘 Support
-
-- Check the monitoring UI for real-time error details
-- Review Azure Container Apps logs if needed
-- All SCIM requests/responses are logged automatically
-
----
-
-**✅ That's it! Your SCIMServer instance is ready for production use.**
+For the complete walkthrough with screenshots: [docs/AZURE_DEPLOYMENT_AND_USAGE_GUIDE.md](docs/AZURE_DEPLOYMENT_AND_USAGE_GUIDE.md)

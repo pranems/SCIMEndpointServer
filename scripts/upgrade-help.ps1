@@ -15,7 +15,7 @@
 .PARAMETER Image
   Base image reference (e.g. myregistry.azurecr.io/scimserver)
 .PARAMETER GitHubRepo
-  GitHub repo in owner/name form (default: kayasax/SCIMServer)
+  GitHub repo in owner/name form (default: pranems/SCIMServer)
 .PARAMETER Prerelease
   Include pre-release versions (default: false)
 .PARAMETER DryRun
@@ -29,7 +29,7 @@ param(
   [Parameter(Mandatory)][string]$ResourceGroup,
   [Parameter(Mandatory)][string]$AppName,
   [Parameter(Mandatory)][string]$Image,
-  [string]$GitHubRepo = 'kayasax/SCIMServer',
+  [string]$GitHubRepo = 'pranems/SCIMServer',
   [switch]$Prerelease,
   [switch]$DryRun
 )

@@ -29,6 +29,20 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
 
   async onModuleInit(): Promise<void> {
     await this.$connect();
+
+    // Enable WAL journal mode and set busy timeout for better concurrent write handling.
+    // SQLite default journal mode (DELETE) serialises writes aggressively; WAL allows
+    // readers and a single writer to proceed concurrently, which prevents the Prisma
+    // interactive-transaction timeout that occurs under load (e.g. SCIM validator).
+    try {
+      const walResult = await this.$queryRawUnsafe<Array<{ journal_mode: string }>>('PRAGMA journal_mode = WAL;');
+      const busyResult = await this.$queryRawUnsafe<Array<{ busy_timeout: number }>>('PRAGMA busy_timeout = 15000;');
+      this.logger.log(`SQLite PRAGMAs set: journal_mode=${JSON.stringify(walResult)}, busy_timeout=${JSON.stringify(busyResult)}`);
+    } catch (err) {
+      // Non-fatal: if the database is not SQLite (e.g. tests with in-memory), silently skip.
+      this.logger.warn(`Could not set SQLite PRAGMAs: ${err instanceof Error ? err.message : String(err)}`);
+    }
+
     this.logger.log('Database connected successfully');
     this.logger.log(`Using database: ${process.env.DATABASE_URL || 'file:./dev.db (fallback)'}`);
   }

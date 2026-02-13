@@ -173,7 +173,7 @@ $infraDir   = Join-Path $tempRoot 'infra'
 New-Item -ItemType Directory -Path $scriptsDir -Force | Out-Null
 New-Item -ItemType Directory -Path $infraDir -Force   | Out-Null
 
-$rawBase = 'https://raw.githubusercontent.com/kayasax/SCIMServer/master'
+$rawBase = 'https://raw.githubusercontent.com/pranems/SCIMServer/master'
 $files = @(
     @{ url = "$rawBase/scripts/deploy-azure.ps1"; path = Join-Path $scriptsDir 'deploy-azure.ps1' },
 	@{ url = "$rawBase/infra/networking.bicep"; path = Join-Path $infraDir   'networking.bicep' },

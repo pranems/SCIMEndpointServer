@@ -16,7 +16,7 @@
 | 🔍 Preview      | 7     | All passing (informational) |
 | ⚠️ Warnings     | 0     | Content-Type header fixed |
 
-> **🎉 FULLY COMPLIANT** — All 13 failures resolved on February 9, 2026. The 13 failures mapped to **8 distinct root-cause bugs** (A–H), all now fixed across 4 source files. 317 unit tests pass.
+> **🎉 FULLY COMPLIANT** — All 13 failures resolved on February 9, 2026. The 13 failures mapped to **8 distinct root-cause bugs** (A–H), all now fixed across 4 source files. Subsequent v0.9.1 performance fixes bring the total to **648 unit tests passing** (19 suites) with **24/24 SCIM validator tests passing**.
 
 ---
 

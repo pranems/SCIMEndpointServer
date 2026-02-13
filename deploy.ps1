@@ -7,9 +7,9 @@
     No git clone needed - everything downloads automatically!
 
 .EXAMPLE
-    iex (irm 'https://raw.githubusercontent.com/kayasax/SCIMServer/master/deploy.ps1')
+    iex (irm 'https://raw.githubusercontent.com/pranems/SCIMServer/master/deploy.ps1')
     # Or with custom branch:
-    $Branch = "dev"; iex (irm 'https://raw.githubusercontent.com/kayasax/SCIMServer/master/deploy.ps1')
+    $Branch = "dev"; iex (irm 'https://raw.githubusercontent.com/pranems/SCIMServer/master/deploy.ps1')
 #>
 
 # Default branch - can be overridden by setting $Branch variable before calling
@@ -215,7 +215,7 @@ try {
     Write-Host "📥 Downloading SCIMServer source..." -ForegroundColor Cyan
 
     # Download the source as ZIP
-    $RepoUrl = "https://github.com/kayasax/SCIMServer/archive/refs/heads/$Branch.zip"
+    $RepoUrl = "https://github.com/pranems/SCIMServer/archive/refs/heads/$Branch.zip"
     $ZipPath = Join-Path $TempDir "scimserver.zip"
 
     Invoke-WebRequest -Uri $RepoUrl -OutFile $ZipPath -UseBasicParsing

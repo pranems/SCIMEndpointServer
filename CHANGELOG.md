@@ -5,6 +5,34 @@ All notable changes to SCIMServer will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.1] - 2026-02-13
+
+### Fixed
+- **SCIM Validator 24/24:** Resolved the last remaining failure — "Filter for existing group with different case" — by adding a `displayNameLower` column to `ScimGroup` (mirrors existing `userNameLower` pattern on `ScimUser`)
+- **Group PATCH transaction timeouts:** Moved member resolution (`scimUser.findMany`) outside `$transaction` in both PATCH and PUT group operations, reducing write-lock hold time
+- **SQLite write-lock contention:** Buffered request logging (flush every 3s or 50 entries) eliminates per-request fire-and-forget writes competing for the single SQLite writer lock
+- **`assertUniqueDisplayName` performance:** Refactored from O(N) `findMany` full-table scan to O(1) `findFirst` using the new `displayNameLower` indexed column
+- **Live test script bug (Section 9k):** Fixed 7 occurrences in `scripts/live-test.ps1` where Per-Endpoint Log Level tests accessed `$response.config.endpointLevels` instead of `$response.endpointLevels` (GET `/scim/admin/log-config` returns properties at top level, not nested under `.config`)
+
+### Added
+- `displayNameLower` column on `ScimGroup` model with `@@unique([endpointId, displayNameLower])` composite constraint
+- Migration `20260213064256_add_display_name_lower` with data backfill (`LOWER(displayName)` for existing rows)
+- `displayname` mapped to `displayNameLower` in `GROUP_DB_COLUMNS` for DB-level push-down filtering (case-insensitive)
+- `LoggingService` now implements `OnModuleDestroy` for graceful shutdown flush of buffered logs
+
+### Changed
+- Group filter `displayName eq "..."` now uses DB push-down instead of in-memory full-table scan (~10,000ms → ~250ms)
+- `tryPushToDb` lowercases values for both `username` and `displayname` filter attributes
+- All group write paths (create, PATCH, PUT) set `displayNameLower` on persistence
+
+### Verified
+- **648/648 unit tests passing** (19 test suites)
+- 177/177 e2e tests passing (14 suites)
+- 272/272 live integration tests passing
+- **24/24 Microsoft SCIM Validator tests passing** (all non-preview) + 7 preview tests passing
+
+---
+
 ## [0.9.0] - 2026-02-14
 
 ### Changed
@@ -192,6 +220,6 @@ SCIMServer follows semantic versioning: `MAJOR.MINOR.PATCH`
 
 ## Links
 
-- [Latest Release](https://github.com/kayasax/SCIMServer/releases/latest)
-- [All Releases](https://github.com/kayasax/SCIMServer/releases)
-- [Documentation](https://github.com/kayasax/SCIMServer/blob/master/README.md)
+- [Latest Release](https://github.com/pranems/SCIMServer/releases/latest)
+- [All Releases](https://github.com/pranems/SCIMServer/releases)
+- [Documentation](https://github.com/pranems/SCIMServer/blob/master/README.md)

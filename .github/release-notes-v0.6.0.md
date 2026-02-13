@@ -52,7 +52,7 @@ This release adds **persistent storage** support to ensure your SCIM monitoring 
 az containerapp update `
     --name "scimserver" `
     --resource-group "your-rg" `
-    --image "ghcr.io/kayasax/scimserver:0.6.0"
+    --image "ghcr.io/pranems/scimserver:0.6.0"
 ```
 
 ## 💰 Cost Impact
@@ -70,7 +70,7 @@ Persistent storage adds approximately **$0.35/month**:
 
 ## 📦 Docker Image
 
-- **Registry**: `ghcr.io/kayasax/scimserver`
+- **Registry**: `ghcr.io/pranems/scimserver`
 - **Tags**: `0.6.0`, `latest`
 - **Size**: ~380MB (optimized multi-stage build)
 
@@ -80,7 +80,7 @@ Persistent storage adds approximately **$0.35/month**:
 
 ## 📝 Full Changelog
 
-See the [commit history](https://github.com/kayasax/SCIMServer/compare/v0.5.0...v0.6.0) for detailed changes.
+See the [commit history](https://github.com/pranems/SCIMServer/compare/v0.5.0...v0.6.0) for detailed changes.
 
 ---
 

@@ -70,7 +70,7 @@ This is a **safe, backward-compatible** update:
 ### Update Command
 ```powershell
 # Using the direct update script
-iex (irm 'https://raw.githubusercontent.com/kayasax/SCIMServer/master/scripts/update-scimserver-direct.ps1')
+iex (irm 'https://raw.githubusercontent.com/pranems/SCIMServer/master/scripts/update-scimserver-direct.ps1')
 Update-SCIMServerDirect -Version v0.8.14 -ResourceGroup <your-rg> -AppName <your-app>
 ```
 
@@ -141,4 +141,4 @@ Implemented using Test-Driven Development (TDD) methodology with comprehensive t
 
 ---
 
-**Full Changelog:** [v0.8.13...v0.8.14](https://github.com/kayasax/SCIMServer/compare/v0.8.13...v0.8.14)
+**Full Changelog:** [v0.8.13...v0.8.14](https://github.com/pranems/SCIMServer/compare/v0.8.13...v0.8.14)

@@ -82,6 +82,7 @@ export class EndpointScimGroupsService {
         scimId,
         externalId,
         displayName: dto.displayName,
+        displayNameLower: dto.displayName.toLowerCase(),
         rawPayload: JSON.stringify(sanitizedPayload),
         meta: JSON.stringify({
           resourceType: 'Group',
@@ -218,27 +219,41 @@ export class EndpointScimGroupsService {
       }
     }
 
-    await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-      await tx.scimGroup.update({
-        where: { id: group.id },
-        data: {
-          displayName,
-          externalId,
-          rawPayload: JSON.stringify(rawPayload),
-          meta: JSON.stringify({
-            ...this.parseJson<Record<string, unknown>>(String(group.meta ?? '{}')),
-            lastModified: new Date().toISOString()
-          })
+    // Pre-resolve member user IDs OUTSIDE the transaction to minimise lock hold time.
+    // The user data is stable within this request context so the lookup is safe here.
+    const memberData = memberDtos.length > 0
+      ? await this.mapMembersForPersistenceForEndpoint(group.id, memberDtos, endpointId)
+      : [];
+
+    try {
+      await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+        await tx.scimGroup.update({
+          where: { id: group.id },
+          data: {
+            displayName,
+            displayNameLower: displayName.toLowerCase(),
+            externalId,
+            rawPayload: JSON.stringify(rawPayload),
+            meta: JSON.stringify({
+              ...this.parseJson<Record<string, unknown>>(String(group.meta ?? '{}')),
+              lastModified: new Date().toISOString()
+            })
+          }
+        });
+
+        await tx.groupMember.deleteMany({ where: { groupId: group.id } });
+
+        if (memberData.length > 0) {
+          await tx.groupMember.createMany({ data: memberData });
         }
+      }, { maxWait: 10000, timeout: 30000 });
+    } catch (error) {
+      this.logger.error(LogCategory.SCIM_PATCH, 'Transaction failed during group patch', { scimId, endpointId, error: String(error) });
+      throw createScimError({
+        status: 500,
+        detail: `Failed to update group: ${error instanceof Error ? error.message : 'transaction error'}`,
       });
-
-      await tx.groupMember.deleteMany({ where: { groupId: group.id } });
-
-      if (memberDtos.length > 0) {
-        const data = await this.mapMembersForPersistenceForEndpoint(group.id, memberDtos, endpointId, tx);
-        await tx.groupMember.createMany({ data });
-      }
-    });
+    }
 
     // RFC 7644 §3.5.2: Return the updated resource with 200 OK
     const updatedGroup = await this.getGroupWithMembersForEndpoint(scimId, endpointId);
@@ -272,28 +287,41 @@ export class EndpointScimGroupsService {
       ? (dto as Record<string, unknown>).externalId as string
       : null;
 
-    await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-      await tx.scimGroup.update({
-        where: { id: group.id },
-        data: {
-          displayName: dto.displayName,
-          externalId: newExternalId,
-          rawPayload: JSON.stringify(this.extractAdditionalAttributes(dto)),
-          meta: JSON.stringify({
-            ...meta,
-            lastModified: now.toISOString()
-          })
+    // Pre-resolve member user IDs OUTSIDE the transaction to minimise lock hold time.
+    const replaceMemberData = (dto.members && dto.members.length > 0)
+      ? await this.mapMembersForPersistenceForEndpoint(group.id, dto.members, endpointId)
+      : [];
+
+    try {
+      await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+        await tx.scimGroup.update({
+          where: { id: group.id },
+          data: {
+            displayName: dto.displayName,
+            displayNameLower: dto.displayName.toLowerCase(),
+            externalId: newExternalId,
+            rawPayload: JSON.stringify(this.extractAdditionalAttributes(dto)),
+            meta: JSON.stringify({
+              ...meta,
+              lastModified: now.toISOString()
+            })
+          }
+        });
+
+        // Replace all members with new ones
+        await tx.groupMember.deleteMany({ where: { groupId: group.id } });
+
+        if (replaceMemberData.length > 0) {
+          await tx.groupMember.createMany({ data: replaceMemberData });
         }
+      }, { maxWait: 10000, timeout: 30000 });
+    } catch (error) {
+      this.logger.error(LogCategory.SCIM_GROUP, 'Transaction failed during group replace', { scimId, endpointId, error: String(error) });
+      throw createScimError({
+        status: 500,
+        detail: `Failed to replace group: ${error instanceof Error ? error.message : 'transaction error'}`,
       });
-
-      // Replace all members with new ones
-      await tx.groupMember.deleteMany({ where: { groupId: group.id } });
-
-      if (dto.members && dto.members.length > 0) {
-        const data = await this.mapMembersForPersistenceForEndpoint(group.id, dto.members, endpointId, tx);
-        await tx.groupMember.createMany({ data });
-      }
-    });
+    }
 
     // Return updated group
     const updatedGroup = await this.getGroupWithMembersForEndpoint(scimId, endpointId);
@@ -333,20 +361,20 @@ export class EndpointScimGroupsService {
     endpointId: string,
     excludeScimId?: string
   ): Promise<void> {
-    // Fetch all groups for the endpoint and check case-insensitively
-    // (SQLite doesn't support mode: 'insensitive' in Prisma)
-    const filters: Prisma.ScimGroupWhereInput = { endpointId };
+    // Use the displayNameLower column for an efficient DB-level case-insensitive check
+    const lowerName = displayName.toLowerCase();
+    const filters: Prisma.ScimGroupWhereInput = {
+      endpointId,
+      displayNameLower: lowerName,
+    };
     if (excludeScimId) {
       filters.NOT = { scimId: excludeScimId };
     }
 
-    const groups = await this.prisma.scimGroup.findMany({
+    const conflict = await this.prisma.scimGroup.findFirst({
       where: filters,
-      select: { scimId: true, displayName: true }
+      select: { scimId: true }
     });
-
-    const lowerName = displayName.toLowerCase();
-    const conflict = groups.find(g => g.displayName.toLowerCase() === lowerName);
 
     if (conflict) {
       throw createScimError({

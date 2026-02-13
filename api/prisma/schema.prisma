@@ -52,15 +52,16 @@ model ScimUser {
 }
 
 model ScimGroup {
-  id          String   @id @default(cuid())
-  endpointId  String   // Foreign key to endpoint
-  scimId      String
-  externalId  String?  // Entra ID sends externalId for groups; first-class column for uniqueness & filtering
-  displayName String
-  rawPayload  String
-  meta        String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id               String   @id @default(cuid())
+  endpointId       String   // Foreign key to endpoint
+  scimId           String
+  externalId       String?  // Entra ID sends externalId for groups; first-class column for uniqueness & filtering
+  displayName      String
+  displayNameLower String   // Lowercased for case-insensitive filtering & uniqueness (RFC 7643 §2.1)
+  rawPayload       String
+  meta             String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   endpoint Endpoint      @relation(fields: [endpointId], references: [id], onDelete: Cascade)
   members  GroupMember[]
@@ -68,6 +69,7 @@ model ScimGroup {
   // Composite unique constraint per endpoint
   @@unique([endpointId, scimId])
   @@unique([endpointId, externalId])
+  @@unique([endpointId, displayNameLower])
   @@index([endpointId])
 }
 

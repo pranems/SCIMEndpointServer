@@ -12,7 +12,7 @@ Aligns every surfaced version string (API, web UI, scripts, and docs) to `0.8.5`
 
 ## Upgrade
 ```
-iex (irm 'https://raw.githubusercontent.com/kayasax/SCIMServer/master/scripts/update-scimserver-direct.ps1'); Update-SCIMServerDirect -Version v0.8.5 -ResourceGroup <rg> -AppName <app> -NoPrompt -ShowCurrent
+iex (irm 'https://raw.githubusercontent.com/pranems/SCIMServer/master/scripts/update-scimserver-direct.ps1'); Update-SCIMServerDirect -Version v0.8.5 -ResourceGroup <rg> -AppName <app> -NoPrompt -ShowCurrent
 ```
 
 ## Verification

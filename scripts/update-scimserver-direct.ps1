@@ -2,7 +2,7 @@
 # Minimal variant: requires explicit Resource Group and Container App name.
 # Intended for generation by the running SCIMServer app so discovery is unnecessary.
 # Usage example (app can render this ready to copy):
-#   iex (irm 'https://raw.githubusercontent.com/kayasax/SCIMServer/master/scripts/update-scimserver-direct.ps1'); \
+#   iex (irm 'https://raw.githubusercontent.com/pranems/SCIMServer/master/scripts/update-scimserver-direct.ps1'); \
 #     Update-SCIMServer -Version v0.8.1 -ResourceGroup my-rg -AppName scimserver-app -NoPrompt
 
 function Update-SCIMServerDirect {
@@ -13,7 +13,7 @@ function Update-SCIMServerDirect {
         [string]$ScimSecret,
         [string]$JwtSecret,
         [string]$OauthClientSecret,
-        [string]$Registry = 'ghcr.io/kayasax',
+        [string]$Registry = 'ghcr.io/pranems',
         [switch]$NoPrompt,
         [switch]$Quiet,
         [switch]$DryRun,

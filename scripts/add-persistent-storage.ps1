@@ -209,7 +209,7 @@ if (-not $currentScimSecret) {
     $scimSecret = Read-Host "Please enter your SCIM shared secret (same as before)"
 }
 
-# Parse image: "ghcr.io/kayasax/scimserver:0.5.0" -> registry="ghcr.io", image="kayasax/scimserver:0.5.0"
+# Parse image: "ghcr.io/pranems/scimserver:0.5.0" -> registry="ghcr.io", image="pranems/scimserver:0.5.0"
 $imageParts = $currentImage -split '/', 2
 $registry = $imageParts[0]
 $imageWithTag = $imageParts[1]

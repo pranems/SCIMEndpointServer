@@ -20,7 +20,7 @@ param jwtSecret string
 @secure()
 param oauthClientSecret string
 @description('Target port inside container')
-param targetPort int = 80
+param targetPort int = 8080
 @description('Min replicas')
 param minReplicas int = 1
 @description('Max replicas')
@@ -39,6 +39,11 @@ param memory string = '1Gi'
 param blobBackupAccountName string
 @description('Blob backup container name')
 param blobBackupContainerName string = 'scimserver-backups'
+@description('GHCR username for pulling container images (optional, only for private packages)')
+param ghcrUsername string = ''
+@description('GHCR PAT token for pulling container images (optional, only for private packages)')
+@secure()
+param ghcrPassword string = ''
 
 resource env 'Microsoft.App/managedEnvironments@2024-03-01' existing = {
   name: environmentName
@@ -58,14 +63,20 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = {
         targetPort: targetPort
         transport: 'auto'
       }
-      // Only configure registry authentication for private registries (not ghcr.io which is public)
-      registries: acrLoginServer != 'ghcr.io' ? [
+      // Configure registry authentication
+      registries: acrLoginServer == 'ghcr.io' && ghcrUsername != '' ? [
+        {
+          server: 'ghcr.io'
+          username: ghcrUsername
+          passwordSecretRef: 'ghcr-password'
+        }
+      ] : acrLoginServer != 'ghcr.io' ? [
         {
           server: acrLoginServer
           identity: 'system'
         }
       ] : []
-      secrets: [
+      secrets: concat([
         {
           name: 'scim-shared-secret'
           value: scimSharedSecret
@@ -78,7 +89,12 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = {
           name: 'oauth-client-secret'
           value: oauthClientSecret
         }
-      ]
+      ], ghcrPassword != '' ? [
+        {
+          name: 'ghcr-password'
+          value: ghcrPassword
+        }
+      ] : [])
     }
     template: {
       // Init container only cleans Azure Files journal artifacts now; main container handles restore to /tmp
@@ -106,6 +122,44 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = {
             cpu: json(cpuCores)
             memory: memory
           }
+          probes: [
+            {
+              type: 'Startup'
+              httpGet: {
+                path: '/index.html'
+                port: targetPort
+                scheme: 'HTTP'
+              }
+              initialDelaySeconds: 10
+              periodSeconds: 5
+              timeoutSeconds: 3
+              failureThreshold: 30
+              successThreshold: 1
+            }
+            {
+              type: 'Liveness'
+              httpGet: {
+                path: '/index.html'
+                port: targetPort
+                scheme: 'HTTP'
+              }
+              periodSeconds: 30
+              timeoutSeconds: 5
+              failureThreshold: 3
+            }
+            {
+              type: 'Readiness'
+              httpGet: {
+                path: '/index.html'
+                port: targetPort
+                scheme: 'HTTP'
+              }
+              periodSeconds: 10
+              timeoutSeconds: 3
+              failureThreshold: 3
+              successThreshold: 1
+            }
+          ]
           volumeMounts: []
         }
       ]

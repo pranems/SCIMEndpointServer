@@ -147,12 +147,13 @@ describe('EndpointScimGroupsService', () => {
         displayName: 'New Group',
       };
 
-      mockPrismaService.scimGroup.findMany.mockResolvedValue([]); // uniqueness check
       mockPrismaService.scimGroup.create.mockResolvedValue(mockGroup);
-      mockPrismaService.scimGroup.findFirst.mockResolvedValue({
-        ...mockGroup,
-        displayName: createDto.displayName,
-      });
+      mockPrismaService.scimGroup.findFirst
+        .mockResolvedValueOnce(null) // assertUniqueDisplayName → no conflict
+        .mockResolvedValueOnce({
+          ...mockGroup,
+          displayName: createDto.displayName,
+        });
 
       const result = await service.createGroupForEndpoint(
         createDto,
@@ -181,23 +182,24 @@ describe('EndpointScimGroupsService', () => {
         ],
       };
 
-      mockPrismaService.scimGroup.findMany.mockResolvedValue([]); // uniqueness check
       mockPrismaService.scimGroup.create.mockResolvedValue(mockGroup);
       mockPrismaService.scimUser.findMany.mockResolvedValue([mockUser]);
-      mockPrismaService.scimGroup.findFirst.mockResolvedValue({
-        ...mockGroup,
-        members: [
-          {
-            id: 'member-1',
-            groupId: mockGroup.id,
-            userId: mockUser.id,
-            value: mockUser.scimId,
-            display: 'Test User',
-            type: null,
-            createdAt: new Date(),
-          },
-        ],
-      });
+      mockPrismaService.scimGroup.findFirst
+        .mockResolvedValueOnce(null) // assertUniqueDisplayName → no conflict
+        .mockResolvedValueOnce({
+          ...mockGroup,
+          members: [
+            {
+              id: 'member-1',
+              groupId: mockGroup.id,
+              userId: mockUser.id,
+              value: mockUser.scimId,
+              display: 'Test User',
+              type: null,
+              createdAt: new Date(),
+            },
+          ],
+        });
 
       const result = await service.createGroupForEndpoint(
         createDto,
@@ -1142,12 +1144,14 @@ describe('EndpointScimGroupsService', () => {
         endpointId: 'endpoint-2',
         displayName: createDto.displayName,
       });
-      mockPrismaService.scimGroup.findFirst.mockResolvedValue({
-        ...mockGroup,
-        id: 'group-2',
-        endpointId: 'endpoint-2',
-        displayName: createDto.displayName,
-      });
+      mockPrismaService.scimGroup.findFirst
+        .mockResolvedValueOnce(null) // assertUniqueDisplayName → no conflict
+        .mockResolvedValueOnce({
+          ...mockGroup,
+          id: 'group-2',
+          endpointId: 'endpoint-2',
+          displayName: createDto.displayName,
+        });
 
       const result = await service.createGroupForEndpoint(
         createDto,
@@ -1168,10 +1172,12 @@ describe('EndpointScimGroupsService', () => {
       mockPrismaService.scimGroup.create.mockResolvedValue(mockGroup);
       // No users found in this endpoint
       mockPrismaService.scimUser.findMany.mockResolvedValue([]);
-      mockPrismaService.scimGroup.findFirst.mockResolvedValue({
-        ...mockGroup,
-        members: [], // No members added
-      });
+      mockPrismaService.scimGroup.findFirst
+        .mockResolvedValueOnce(null) // assertUniqueDisplayName → no conflict
+        .mockResolvedValueOnce({
+          ...mockGroup,
+          members: [], // No members added
+        });
 
       const result = await service.createGroupForEndpoint(
         createDto,
@@ -1285,10 +1291,12 @@ describe('EndpointScimGroupsService', () => {
         };
 
         mockPrismaService.scimGroup.create.mockResolvedValue(mockGroup);
-        mockPrismaService.scimGroup.findFirst.mockResolvedValue({
-          ...mockGroup,
-          displayName: createDto.displayName,
-        });
+        mockPrismaService.scimGroup.findFirst
+          .mockResolvedValueOnce(null) // assertUniqueDisplayName → no conflict
+          .mockResolvedValueOnce({
+            ...mockGroup,
+            displayName: createDto.displayName,
+          });
 
         // Should not throw despite different casing
         const result = await service.createGroupForEndpoint(
@@ -1312,8 +1320,8 @@ describe('EndpointScimGroupsService', () => {
         externalId: 'ext-grp-001',
       } as CreateGroupDto;
 
-      mockPrismaService.scimGroup.findMany.mockResolvedValue([]); // displayName uniqueness
       mockPrismaService.scimGroup.findFirst
+        .mockResolvedValueOnce(null) // assertUniqueDisplayName → no conflict
         .mockResolvedValueOnce(null) // assertUniqueExternalId → no conflict
         .mockResolvedValueOnce({
           ...mockGroup,

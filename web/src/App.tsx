@@ -64,7 +64,7 @@ const AppContent: React.FC = () => {
   const [deploymentInfo, setDeploymentInfo] = useState<DeploymentInfo | null>(null);
   const [isTestVersion, setIsTestVersion] = useState(false);
   // Hard-coded upstream GitHub repository for release discovery
-  const githubRepo = 'kayasax/SCIMServer';
+  const githubRepo = 'pranems/SCIMServer';
 
   // Basic semver normalization + comparison (ignores pre-release precedence nuances)
   function normalize(v?: string | null): string | null {
@@ -111,8 +111,8 @@ const AppContent: React.FC = () => {
   const upgradeCommand = useMemo(() => {
     if (!(upgradeAvailable && latestTag)) return '';
 
-    const directUrl = 'https://raw.githubusercontent.com/kayasax/SCIMServer/master/scripts/update-scimserver-direct.ps1';
-    const funcUrl = 'https://raw.githubusercontent.com/kayasax/SCIMServer/master/scripts/update-scimserver-func.ps1';
+    const directUrl = 'https://raw.githubusercontent.com/pranems/SCIMServer/master/scripts/update-scimserver-direct.ps1';
+    const funcUrl = 'https://raw.githubusercontent.com/pranems/SCIMServer/master/scripts/update-scimserver-func.ps1';
   const cleanTag = latestTag.startsWith('v') ? latestTag.slice(1) : latestTag;
 
     const resourceGroup = effectiveDeployment.resourceGroup;
@@ -133,7 +133,7 @@ const AppContent: React.FC = () => {
                 return segments.slice(0, -1).join('/');
               }
             }
-            return 'ghcr.io/kayasax';
+            return 'ghcr.io/pranems';
           }
           return registryValue;
         }
@@ -637,9 +637,9 @@ const AppContent: React.FC = () => {
       <footer className={styles.footer}>
         <div className={styles.footerContent}>
           <span>Made by <strong>Loïc MICHEL</strong></span>
-          <span>v{localVersion?.version || '0.8.15'}</span>
+          <span>v{localVersion?.version || '0.9.1'}</span>
           <a
-            href="https://github.com/kayasax/SCIMServer"
+            href="https://github.com/pranems/SCIMServer"
             target="_blank"
             rel="noopener noreferrer"
             className={styles.footerLink}

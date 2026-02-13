@@ -700,12 +700,12 @@ Features: Named volume for persistent backup, auto-restart, random secrets
 
 ```powershell
 # Tag and push to ACR
-docker tag scimserver:live-test myregistry.azurecr.io/scimserver:v0.8.15
-docker push myregistry.azurecr.io/scimserver:v0.8.15
+docker tag scimserver:live-test myregistry.azurecr.io/scimserver:v0.9.1
+docker push myregistry.azurecr.io/scimserver:v0.9.1
 
 # Deploy (see scripts/deploy-azure.ps1 for full automation)
 az containerapp update --name scimserver --resource-group my-rg \
-  --image myregistry.azurecr.io/scimserver:v0.8.15
+  --image myregistry.azurecr.io/scimserver:v0.9.1
 ```
 
 ### Health Check

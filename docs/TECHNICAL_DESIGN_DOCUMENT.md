@@ -1,7 +1,7 @@
 # SCIMServer — Technical Design Document (TDD)
 
-> **Version**: 1.0  
-> **Date**: February 9, 2026  
+> **Version**: 1.1  
+> **Date**: February 13, 2026  
 > **Status**: Current as-built architecture  
 > **Tech Stack**: NestJS 11 · TypeScript 5 · Prisma 6 · SQLite · React 18 · Vite 5 · Azure Container Apps
 

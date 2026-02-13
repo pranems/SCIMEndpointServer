@@ -41,10 +41,10 @@
 
 | Test Tier | Count | Result |
 |-----------|-------|--------|
-| **Unit tests** | 492 / 492 | ✅ All passing |
-| **E2E tests** | 154 / 154 (13 suites) | ✅ All passing |
-| **Live tests (local)** | 212 / 212 (23 sections) | ✅ All passing |
-| **Live tests (Docker)** | 212 / 212 (23 sections) | ✅ All passing |
+| **Unit tests** | 648 / 648 (19 suites) | ✅ All passing |
+| **E2E tests** | 177 / 177 (14 suites) | ✅ All passing |
+| **Live tests (local)** | 272 / 272 | ✅ All passing |
+| **Live tests (Docker)** | 272 / 272 | ✅ All passing |
 | **ESLint** | 0 errors, 48 warnings | ✅ Clean (warnings are intentional `any` + test scaffolding) |
 
 ---

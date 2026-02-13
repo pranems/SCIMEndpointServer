@@ -204,7 +204,7 @@ if ($currentImage) {
 # Build full image reference
 # Construct image reference
 $registry = "ghcr.io"
-$imageName = "kayasax/scimserver"
+$imageName = "pranems/scimserver"
 $imageRef = "${registry}/${imageName}:${TestTag}"
 
 # Check if tag looks like a branch name and provide helpful hint
@@ -284,7 +284,7 @@ try {
 } catch {
     Write-Host "`n❌ Update failed: $_" -ForegroundColor Red
     Write-Host "`nTroubleshooting:" -ForegroundColor Yellow
-    Write-Host "  1. Verify image exists: https://github.com/kayasax/SCIMServer/pkgs/container/scimserver" -ForegroundColor Gray
+    Write-Host "  1. Verify image exists: https://github.com/pranems/SCIMServer/pkgs/container/scimserver" -ForegroundColor Gray
     Write-Host "  2. Check Container App logs: az containerapp logs show -n $AppName -g $ResourceGroup --tail 50" -ForegroundColor Gray
     Write-Host "  3. Verify GHCR permissions: Image must be public or you need ghcr.io credentials" -ForegroundColor Gray
     exit 1
