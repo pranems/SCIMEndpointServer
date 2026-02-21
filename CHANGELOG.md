@@ -5,6 +5,37 @@ All notable changes to SCIMServer will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.12.0] - 2026-02-21
+
+### Added
+- **Filter Push-Down Expansion (Phase 4):** Full SCIM operator push-down to PostgreSQL for all 10 comparison operators on mapped columns
+  - `co` (contains) → Prisma `contains` with `mode: 'insensitive'` — backed by `pg_trgm` GIN indexes
+  - `sw` (starts with) → Prisma `startsWith` with `mode: 'insensitive'` — backed by `pg_trgm` GIN indexes
+  - `ew` (ends with) → Prisma `endsWith` with `mode: 'insensitive'` — backed by `pg_trgm` GIN indexes
+  - `ne` (not equal) → Prisma `{ not: value }`
+  - `gt`/`ge`/`lt`/`le` → Prisma `{ gt/gte/lt/lte: value }`
+  - `pr` (presence) → Prisma `{ not: null }` (IS NOT NULL)
+- **Compound Filter Push-Down:** AND/OR logical expressions recursively pushed to DB via Prisma `AND`/`OR` arrays
+- **Expanded Column Maps:** Added `displayName` (citext) and `active` (boolean) to User column map; added `active` to Group column map
+- **Column Type Annotations:** Column maps now include type info (`citext`/`varchar`/`boolean`/`uuid`) for operator validation
+- **Prisma Filter Evaluator:** New `prisma-filter-evaluator.ts` utility for InMemory repositories to evaluate Prisma-style WHERE clauses
+- **Phase 4 Documentation:** `docs/phases/PHASE_04_FILTER_PUSH_DOWN.md`
+
+### Changed
+- **`apply-scim-filter.ts`:** Refactored from simple eq-only push-down to full operator + compound expression support
+- **InMemory repositories:** Replaced manual equality loops with shared `matchesPrismaFilter()` evaluator for backend parity
+- **Filter tests:** Updated to verify DB push-down for operators that previously fell back to in-memory
+- **User `displayName` column population:** `displayName` now written as a first-class DB column on create, replace, and patch (fixes `displayName pr` filter returning 0 results)
+
+### Verified
+- **911/911 unit tests passing** (29 test suites)
+- **193/193 E2E tests passing** (15 suites)
+- **302/302 live tests passing** (Docker container against PostgreSQL 17)
+- Build clean (TypeScript), Lint clean
+- Docker image built and tested (`scimserver:latest` v0.12.0)
+
+---
+
 ## [0.11.0] - 2026-02-20
 
 ### Added

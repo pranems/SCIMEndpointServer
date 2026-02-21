@@ -12,6 +12,7 @@ describe('InMemoryUserRepository', () => {
     scimId: 'scim-user-1',
     externalId: 'ext-1',
     userName: 'Alice',
+    displayName: null,
     active: true,
     rawPayload: '{}',
     meta: '{"resourceType":"User"}',

@@ -11,6 +11,7 @@ export interface UserRecord {
   scimId: string;
   externalId: string | null;
   userName: string;
+  displayName: string | null;
   active: boolean;
   rawPayload: string;
   meta: string | null;
@@ -23,6 +24,7 @@ export interface UserCreateInput {
   scimId: string;
   externalId: string | null;
   userName: string;
+  displayName: string | null;
   active: boolean;
   rawPayload: string;
   meta: string;
@@ -31,6 +33,7 @@ export interface UserCreateInput {
 export interface UserUpdateInput {
   externalId?: string | null;
   userName?: string;
+  displayName?: string | null;
   active?: boolean;
   rawPayload?: string;
   meta?: string;

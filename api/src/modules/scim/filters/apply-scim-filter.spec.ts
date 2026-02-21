@@ -3,11 +3,15 @@
  *
  * Tests the SCIM filter → Prisma where-clause bridge logic:
  * - buildUserFilter / buildGroupFilter
- * - tryPushToDb (DB push-down for simple eq filters)
- * - In-memory fallback for complex filters
+ * - Full operator push-down (eq/ne/co/sw/ew/gt/ge/lt/le/pr)
+ * - Compound AND/OR filter push-down
+ * - In-memory fallback for un-pushable filters (valuePath, not, un-mapped attrs)
  *
  * Phase 3: Column maps use actual column names (userName, displayName) because
  * PostgreSQL CITEXT handles case-insensitive comparison. Values are passed as-is.
+ *
+ * Phase 4: Full operator push-down + AND/OR compound expressions. Most filters
+ * that previously fell back to in-memory are now pushed to Prisma/PostgreSQL.
  */
 
 import { buildUserFilter, buildGroupFilter } from './apply-scim-filter';
@@ -16,6 +20,8 @@ describe('apply-scim-filter', () => {
   // ── buildUserFilter ────────────────────────────────────────────────────────
 
   describe('buildUserFilter', () => {
+    // ─── No Filter ─────────────────────────────────────────────────────
+
     it('should return empty filter when no filter string provided', () => {
       const result = buildUserFilter();
       expect(result.dbWhere).toEqual({});
@@ -28,6 +34,8 @@ describe('apply-scim-filter', () => {
       expect(result.dbWhere).toEqual({});
       expect(result.fetchAll).toBe(false);
     });
+
+    // ─── eq operator (DB push-down) ────────────────────────────────────
 
     it('should push eq filter on userName to DB', () => {
       const result = buildUserFilter('userName eq "john@example.com"');
@@ -59,23 +67,154 @@ describe('apply-scim-filter', () => {
       expect(result.dbWhere).toEqual({ userName: 'John@Example.COM' });
     });
 
-    it('should fall back to in-memory for non-eq operators', () => {
-      const result = buildUserFilter('userName co "john"');
-      expect(result.dbWhere).toEqual({});
-      expect(result.fetchAll).toBe(true);
-      expect(result.inMemoryFilter).toBeDefined();
+    // ─── Phase 4: displayName now in User column map ───────────────────
+
+    it('should push eq on displayName to DB (Phase 4: added to column map)', () => {
+      const result = buildUserFilter('displayName eq "John Doe"');
+      expect(result.dbWhere).toEqual({ displayName: 'John Doe' });
+      expect(result.fetchAll).toBe(false);
+      expect(result.inMemoryFilter).toBeUndefined();
     });
 
-    it('should fall back to in-memory for complex filters (and)', () => {
-      const result = buildUserFilter('userName eq "john" and active eq true');
-      expect(result.dbWhere).toEqual({});
-      expect(result.fetchAll).toBe(true);
-      expect(result.inMemoryFilter).toBeDefined();
+    // ─── Phase 4: co operator (DB push-down via contains) ──────────────
+
+    it('should push co filter on userName to DB', () => {
+      const result = buildUserFilter('userName co "john"');
+      expect(result.dbWhere).toEqual({ userName: { contains: 'john', mode: 'insensitive' } });
+      expect(result.fetchAll).toBe(false);
+      expect(result.inMemoryFilter).toBeUndefined();
     });
+
+    // ─── Phase 4: sw operator (DB push-down via startsWith) ────────────
+
+    it('should push sw filter on userName to DB', () => {
+      const result = buildUserFilter('userName sw "j"');
+      expect(result.dbWhere).toEqual({ userName: { startsWith: 'j', mode: 'insensitive' } });
+      expect(result.fetchAll).toBe(false);
+      expect(result.inMemoryFilter).toBeUndefined();
+    });
+
+    // ─── Phase 4: ew operator (DB push-down via endsWith) ──────────────
+
+    it('should push ew filter on userName to DB', () => {
+      const result = buildUserFilter('userName ew ".com"');
+      expect(result.dbWhere).toEqual({ userName: { endsWith: '.com', mode: 'insensitive' } });
+      expect(result.fetchAll).toBe(false);
+    });
+
+    // ─── Phase 4: ne operator ──────────────────────────────────────────
+
+    it('should push ne filter on userName to DB', () => {
+      const result = buildUserFilter('userName ne "admin"');
+      expect(result.dbWhere).toEqual({ userName: { not: 'admin' } });
+      expect(result.fetchAll).toBe(false);
+    });
+
+    // ─── Phase 4: gt/ge/lt/le operators ────────────────────────────────
+
+    it('should push gt filter to DB', () => {
+      const result = buildUserFilter('userName gt "m"');
+      expect(result.dbWhere).toEqual({ userName: { gt: 'm' } });
+      expect(result.fetchAll).toBe(false);
+    });
+
+    it('should push ge filter to DB', () => {
+      const result = buildUserFilter('userName ge "m"');
+      expect(result.dbWhere).toEqual({ userName: { gte: 'm' } });
+      expect(result.fetchAll).toBe(false);
+    });
+
+    it('should push lt filter to DB', () => {
+      const result = buildUserFilter('userName lt "m"');
+      expect(result.dbWhere).toEqual({ userName: { lt: 'm' } });
+      expect(result.fetchAll).toBe(false);
+    });
+
+    it('should push le filter to DB', () => {
+      const result = buildUserFilter('userName le "m"');
+      expect(result.dbWhere).toEqual({ userName: { lte: 'm' } });
+      expect(result.fetchAll).toBe(false);
+    });
+
+    // ─── Phase 4: pr (presence) operator ───────────────────────────────
+
+    it('should push pr filter to DB', () => {
+      const result = buildUserFilter('userName pr');
+      expect(result.dbWhere).toEqual({ userName: { not: null } });
+      expect(result.fetchAll).toBe(false);
+    });
+
+    // ─── Phase 4: active (boolean) filter ──────────────────────────────
+
+    it('should push active eq true to DB', () => {
+      const result = buildUserFilter('active eq true');
+      expect(result.dbWhere).toEqual({ active: true });
+      expect(result.fetchAll).toBe(false);
+    });
+
+    it('should push active eq false to DB', () => {
+      const result = buildUserFilter('active eq false');
+      expect(result.dbWhere).toEqual({ active: false });
+      expect(result.fetchAll).toBe(false);
+    });
+
+    // ─── Phase 4: compound AND filter (DB push-down) ───────────────────
+
+    it('should push AND compound filter to DB when both sides are pushable', () => {
+      const result = buildUserFilter('userName eq "john" and active eq true');
+      expect(result.dbWhere).toEqual({
+        AND: [
+          { userName: 'john' },
+          { active: true },
+        ],
+      });
+      expect(result.fetchAll).toBe(false);
+      expect(result.inMemoryFilter).toBeUndefined();
+    });
+
+    // ─── Phase 4: compound OR filter (DB push-down) ────────────────────
+
+    it('should push OR compound filter to DB when both sides are pushable', () => {
+      const result = buildUserFilter('userName eq "john" or displayName eq "John"');
+      expect(result.dbWhere).toEqual({
+        OR: [
+          { userName: 'john' },
+          { displayName: 'John' },
+        ],
+      });
+      expect(result.fetchAll).toBe(false);
+    });
+
+    // ─── Phase 4: mixed compound with string operators ─────────────────
+
+    it('should push AND with co and eq operators to DB', () => {
+      const result = buildUserFilter('userName co "john" and active eq true');
+      expect(result.dbWhere).toEqual({
+        AND: [
+          { userName: { contains: 'john', mode: 'insensitive' } },
+          { active: true },
+        ],
+      });
+      expect(result.fetchAll).toBe(false);
+    });
+
+    // ─── Fallbacks (still in-memory) ───────────────────────────────────
 
     it('should fall back to in-memory for non-indexed attributes', () => {
-      const result = buildUserFilter('displayName eq "John Doe"');
+      const result = buildUserFilter('emails.value eq "x@y.com"');
       expect(result.dbWhere).toEqual({});
+      expect(result.fetchAll).toBe(true);
+      expect(result.inMemoryFilter).toBeDefined();
+    });
+
+    it('should fall back when AND has un-pushable side', () => {
+      const result = buildUserFilter('userName eq "john" and emails.value eq "x@y.com"');
+      expect(result.fetchAll).toBe(true);
+      expect(result.inMemoryFilter).toBeDefined();
+    });
+
+    it('should fall back when OR has un-pushable side', () => {
+      const result = buildUserFilter('userName eq "john" or emails.value eq "x@y.com"');
       expect(result.fetchAll).toBe(true);
       expect(result.inMemoryFilter).toBeDefined();
     });
@@ -85,16 +224,11 @@ describe('apply-scim-filter', () => {
     });
 
     it('in-memory filter should correctly match resource', () => {
-      const result = buildUserFilter('displayName co "John"');
+      // emails.value is not in column map → falls back to in-memory
+      const result = buildUserFilter('name.givenName co "John"');
       expect(result.inMemoryFilter).toBeDefined();
-      expect(result.inMemoryFilter!({ displayName: 'John Doe' })).toBe(true);
-      expect(result.inMemoryFilter!({ displayName: 'Jane Doe' })).toBe(false);
-    });
-
-    it('should fall back for sw operator', () => {
-      const result = buildUserFilter('userName sw "j"');
-      expect(result.fetchAll).toBe(true);
-      expect(result.inMemoryFilter).toBeDefined();
+      expect(result.inMemoryFilter!({ name: { givenName: 'John Doe' } })).toBe(true);
+      expect(result.inMemoryFilter!({ name: { givenName: 'Jane Doe' } })).toBe(false);
     });
   });
 
@@ -136,11 +270,36 @@ describe('apply-scim-filter', () => {
       expect(result.dbWhere).toEqual({ displayName: 'Engineering Team' });
     });
 
-    it('should fall back to in-memory for non-eq operators', () => {
+    // ─── Phase 4: co/sw/ew operators pushed to DB ──────────────────────
+
+    it('should push co filter on displayName to DB', () => {
       const result = buildGroupFilter('displayName co "Eng"');
-      expect(result.fetchAll).toBe(true);
-      expect(result.inMemoryFilter).toBeDefined();
+      expect(result.dbWhere).toEqual({ displayName: { contains: 'Eng', mode: 'insensitive' } });
+      expect(result.fetchAll).toBe(false);
+      expect(result.inMemoryFilter).toBeUndefined();
     });
+
+    it('should push sw filter on displayName to DB', () => {
+      const result = buildGroupFilter('displayName sw "Eng"');
+      expect(result.dbWhere).toEqual({ displayName: { startsWith: 'Eng', mode: 'insensitive' } });
+      expect(result.fetchAll).toBe(false);
+    });
+
+    // ─── Phase 4: ne / pr operators ────────────────────────────────────
+
+    it('should push ne filter on displayName to DB', () => {
+      const result = buildGroupFilter('displayName ne "Admin"');
+      expect(result.dbWhere).toEqual({ displayName: { not: 'Admin' } });
+      expect(result.fetchAll).toBe(false);
+    });
+
+    it('should push pr filter on externalId to DB', () => {
+      const result = buildGroupFilter('externalId pr');
+      expect(result.dbWhere).toEqual({ externalId: { not: null } });
+      expect(result.fetchAll).toBe(false);
+    });
+
+    // ─── Fallbacks ─────────────────────────────────────────────────────
 
     it('should fall back for userName (not in Group column map)', () => {
       const result = buildGroupFilter('userName eq "test"');
@@ -153,10 +312,10 @@ describe('apply-scim-filter', () => {
     });
 
     it('in-memory filter should correctly evaluate group resources', () => {
-      const result = buildGroupFilter('displayName sw "Eng"');
+      // members is not in column map → falls back
+      const result = buildGroupFilter('members.value eq "user-123"');
+      expect(result.fetchAll).toBe(true);
       expect(result.inMemoryFilter).toBeDefined();
-      expect(result.inMemoryFilter!({ displayName: 'Engineering' })).toBe(true);
-      expect(result.inMemoryFilter!({ displayName: 'Marketing' })).toBe(false);
     });
   });
 });

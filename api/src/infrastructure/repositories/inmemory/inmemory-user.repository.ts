@@ -3,6 +3,9 @@
  *
  * Phase 3: Removed userNameLower — case-insensitive comparison is done at
  * query time via toLowerCase(). Suitable for testing and lightweight deployments.
+ *
+ * Phase 4: Uses matchesPrismaFilter() to evaluate Prisma-style WHERE clauses
+ * produced by the expanded filter push-down (co/sw/ew/ne/gt/ge/lt/le/pr + AND/OR).
  */
 import { Injectable } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
@@ -13,6 +16,7 @@ import type {
   UserUpdateInput,
   UserConflictResult,
 } from '../../../domain/models/user.model';
+import { matchesPrismaFilter } from './prisma-filter-evaluator';
 
 @Injectable()
 export class InMemoryUserRepository implements IUserRepository {
@@ -26,6 +30,7 @@ export class InMemoryUserRepository implements IUserRepository {
       scimId: input.scimId,
       externalId: input.externalId,
       userName: input.userName,
+      displayName: input.displayName,
       active: input.active,
       rawPayload: input.rawPayload,
       meta: input.meta,
@@ -54,17 +59,10 @@ export class InMemoryUserRepository implements IUserRepository {
       (u) => u.endpointId === endpointId,
     );
 
-    if (dbFilter) {
-      for (const [key, value] of Object.entries(dbFilter)) {
-        results = results.filter((u) => {
-          const stored = (u as unknown as Record<string, unknown>)[key];
-          // Case-insensitive comparison for userName (matches CITEXT behavior)
-          if (key === 'userName' && typeof stored === 'string' && typeof value === 'string') {
-            return stored.toLowerCase() === value.toLowerCase();
-          }
-          return stored === value;
-        });
-      }
+    if (dbFilter && Object.keys(dbFilter).length > 0) {
+      results = results.filter((u) =>
+        matchesPrismaFilter(u as unknown as Record<string, unknown>, dbFilter),
+      );
     }
 
     const sortField = orderBy?.field ?? 'createdAt';

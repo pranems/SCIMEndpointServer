@@ -3,6 +3,9 @@
  *
  * Phase 3: Removed displayNameLower — case-insensitive comparison done at
  * query time via toLowerCase(). Suitable for testing and lightweight deployments.
+ *
+ * Phase 4: Uses matchesPrismaFilter() to evaluate Prisma-style WHERE clauses
+ * produced by the expanded filter push-down (co/sw/ew/ne/gt/ge/lt/le/pr + AND/OR).
  */
 import { Injectable } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
@@ -15,6 +18,7 @@ import type {
   MemberCreateInput,
   MemberRecord,
 } from '../../../domain/models/group.model';
+import { matchesPrismaFilter } from './prisma-filter-evaluator';
 
 @Injectable()
 export class InMemoryGroupRepository implements IGroupRepository {
@@ -65,17 +69,10 @@ export class InMemoryGroupRepository implements IGroupRepository {
       (g) => g.endpointId === endpointId,
     );
 
-    if (dbFilter) {
-      for (const [key, value] of Object.entries(dbFilter)) {
-        results = results.filter((g) => {
-          const stored = (g as unknown as Record<string, unknown>)[key];
-          // Case-insensitive comparison for displayName (matches CITEXT behavior)
-          if (key === 'displayName' && typeof stored === 'string' && typeof value === 'string') {
-            return stored.toLowerCase() === value.toLowerCase();
-          }
-          return stored === value;
-        });
-      }
+    if (dbFilter && Object.keys(dbFilter).length > 0) {
+      results = results.filter((g) =>
+        matchesPrismaFilter(g as unknown as Record<string, unknown>, dbFilter),
+      );
     }
 
     const sortField = orderBy?.field ?? 'createdAt';

@@ -29,6 +29,7 @@ describe('EndpointScimUsersService', () => {
     endpointId: 'endpoint-1',
     externalId: 'ext-123',
     userName: 'test@example.com',
+    displayName: 'Test User',
     active: true,
     rawPayload: '{"displayName":"Test User"}',
     meta: JSON.stringify({

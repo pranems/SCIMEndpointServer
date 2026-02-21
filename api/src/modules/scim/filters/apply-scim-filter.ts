@@ -2,11 +2,17 @@
  * SCIM Filter Application Utility
  *
  * Bridges the AST-based filter parser with the Prisma data layer.
- * For simple `eq` filters on indexed DB columns, produces a Prisma `where` clause.
- * For all other filters, falls back to in-memory evaluation using evaluateFilter().
+ * Produces Prisma `where` clauses for all pushable filter expressions:
+ *   - eq, ne, co, sw, ew, gt, ge, lt, le, pr on indexed DB columns
+ *   - AND / OR compound expressions (recursive push-down)
+ * Falls back to in-memory evaluation (evaluateFilter) only when the AST
+ * contains nodes that cannot be pushed (e.g., valuePath, not, un-mapped attributes).
  *
- * Phase 3: Column maps now reference actual column names (userName, displayName)
- * because PostgreSQL CITEXT handles case-insensitive comparison natively.
+ * Phase 3: Column maps reference actual column names (userName, displayName)
+ *   because PostgreSQL CITEXT handles case-insensitive comparison natively.
+ * Phase 4: Full operator push-down — co/sw/ew via Prisma string filters
+ *   (leveraging pg_trgm GIN indexes), gt/ge/lt/le for ordering comparisons,
+ *   pr for presence, ne for negation. AND/OR compound push-down added.
  *
  * @see scim-filter-parser.ts for the AST types and evaluator
  */
@@ -16,19 +22,43 @@ import {
   evaluateFilter,
   type FilterNode,
   type CompareNode,
+  type LogicalNode,
 } from './scim-filter-parser';
+
+// ─── Column Map Types ────────────────────────────────────────────────────────
+
+/** Column type determines which Prisma operators are valid for push-down */
+type ColumnType = 'citext' | 'varchar' | 'boolean' | 'uuid';
+
+interface ColumnMapping {
+  /** Prisma model field name (e.g. 'userName', 'displayName') */
+  column: string;
+  /** PostgreSQL column type — drives operator translation */
+  type: ColumnType;
+}
+
+/** Lowercase SCIM attribute name → Prisma column + type */
+type ColumnMap = Record<string, ColumnMapping>;
 
 // ─── Users ───────────────────────────────────────────────────────────────────
 
-/** DB-pushable column map for Users (attribute name → Prisma column) */
-const USER_DB_COLUMNS: Record<string, string> = {
-  username: 'userName',       // Phase 3: CITEXT handles case-insensitive eq natively
-  externalid: 'externalId',
-  id: 'scimId',
+/**
+ * DB-pushable column map for Users.
+ *
+ * Phase 4: Expanded with displayName (citext) and active (boolean) so that
+ * filters on these common attributes are pushed to PostgreSQL instead of
+ * falling back to full-table scan + in-memory evaluation.
+ */
+const USER_DB_COLUMNS: ColumnMap = {
+  username:    { column: 'userName',    type: 'citext' },
+  displayname: { column: 'displayName', type: 'citext' },
+  externalid:  { column: 'externalId',  type: 'varchar' },
+  id:          { column: 'scimId',      type: 'uuid' },
+  active:      { column: 'active',      type: 'boolean' },
 };
 
 export interface UserFilterResult {
-  /** DB-level filter clause (simple key-value object). */
+  /** DB-level Prisma where clause. May contain nested Prisma operators. */
   dbWhere: Record<string, unknown>;
   /** If set, the in-memory filter fn to apply after DB fetch */
   inMemoryFilter?: (resource: Record<string, unknown>) => boolean;
@@ -39,8 +69,9 @@ export interface UserFilterResult {
 /**
  * Parse a SCIM filter string and determine how to apply it for Users.
  *
- * Optimisation: simple `attr eq "value"` on indexed columns → pushed to DB.
- * Anything else → parsed into AST → in-memory evaluation.
+ * Phase 4: Pushes all operators (eq/ne/co/sw/ew/gt/ge/lt/le/pr) on mapped
+ * columns and compound AND/OR expressions to the database. Only falls back
+ * to in-memory for valuePath, not(), or un-mapped attribute paths.
  */
 export function buildUserFilter(filter?: string): UserFilterResult {
   if (!filter) {
@@ -51,22 +82,10 @@ export function buildUserFilter(filter?: string): UserFilterResult {
   try {
     ast = parseScimFilter(filter);
   } catch {
-    // Re-wrap as SCIM error (done by caller), just re-throw
     throw new Error(`Invalid filter: ${filter}`);
   }
 
-  // Optimisation: simple eq on DB columns → push down
-  const dbClause = tryPushToDb(ast, USER_DB_COLUMNS);
-  if (dbClause) {
-    return { dbWhere: dbClause, fetchAll: false };
-  }
-
-  // Complex filter → in-memory evaluation
-  return {
-    dbWhere: {},
-    fetchAll: true,
-    inMemoryFilter: (resource) => evaluateFilter(ast, resource),
-  };
+  return buildFilterResult(ast, USER_DB_COLUMNS);
 }
 
 // ─── Groups ──────────────────────────────────────────────────────────────────
@@ -74,13 +93,14 @@ export function buildUserFilter(filter?: string): UserFilterResult {
 /**
  * DB-pushable column map for Groups.
  *
- * Phase 3: displayName maps directly to the CITEXT column now — no need for
- * displayNameLower helper column. CITEXT handles case-insensitive eq natively.
+ * Phase 3: displayName maps directly to the CITEXT column.
+ * Phase 4: Expanded with active (boolean).
  */
-const GROUP_DB_COLUMNS: Record<string, string> = {
-  externalid: 'externalId',
-  id: 'scimId',
-  displayname: 'displayName',
+const GROUP_DB_COLUMNS: ColumnMap = {
+  displayname: { column: 'displayName', type: 'citext' },
+  externalid:  { column: 'externalId',  type: 'varchar' },
+  id:          { column: 'scimId',      type: 'uuid' },
+  active:      { column: 'active',      type: 'boolean' },
 };
 
 export interface GroupFilterResult {
@@ -101,11 +121,25 @@ export function buildGroupFilter(filter?: string): GroupFilterResult {
     throw new Error(`Invalid filter: ${filter}`);
   }
 
-  const dbClause = tryPushToDb(ast, GROUP_DB_COLUMNS);
+  return buildFilterResult(ast, GROUP_DB_COLUMNS);
+}
+
+// ─── Shared ──────────────────────────────────────────────────────────────────
+
+/**
+ * Build a filter result from an AST and column map.
+ * Attempts full DB push-down first; falls back to in-memory if needed.
+ */
+function buildFilterResult(
+  ast: FilterNode,
+  columnMap: ColumnMap,
+): { dbWhere: Record<string, unknown>; inMemoryFilter?: (r: Record<string, unknown>) => boolean; fetchAll: boolean } {
+  const dbClause = tryPushToDb(ast, columnMap);
   if (dbClause) {
     return { dbWhere: dbClause, fetchAll: false };
   }
 
+  // Cannot fully push → in-memory evaluation
   return {
     dbWhere: {},
     fetchAll: true,
@@ -113,30 +147,133 @@ export function buildGroupFilter(filter?: string): GroupFilterResult {
   };
 }
 
-// ─── Shared ──────────────────────────────────────────────────────────────────
-
 /**
- * Attempt to convert a simple `attrPath eq "value"` AST into a Prisma where clause.
- * Returns null if the AST is too complex for DB push-down.
+ * Attempt to convert a filter AST node into a Prisma where clause.
+ * Returns null if the node (or any descendant) cannot be pushed to the DB.
  *
- * Phase 3: CITEXT columns (userName, displayName) handle case-insensitive
- * comparison natively in PostgreSQL — no toLowerCase needed. The InMemory
- * repository also handles case-insensitive comparison at query time.
+ * Phase 4: Handles all SCIM comparison operators + AND/OR logical nodes.
+ *
+ * Supported push-down:
+ *   - CompareNode on mapped columns → Prisma scalar/string filter
+ *   - LogicalNode (and/or) → Prisma AND/OR arrays (recursive)
+ *
+ * NOT pushed (returns null):
+ *   - Attributes not in the column map (e.g. emails.value, name.givenName)
+ *   - NotNode (not (...)) — Prisma NOT is possible but deferred for simplicity
+ *   - ValuePathNode (attrPath[valFilter]) — requires JSONB query
  */
 function tryPushToDb(
   ast: FilterNode,
-  columnMap: Record<string, string>,
+  columnMap: ColumnMap,
 ): Record<string, unknown> | null {
-  if (ast.type !== 'compare') return null;
+  switch (ast.type) {
+    case 'compare':
+      return pushCompareToDb(ast as CompareNode, columnMap);
 
-  const node = ast as CompareNode;
-  if (node.op !== 'eq') return null;
-  if (typeof node.value !== 'string' && typeof node.value !== 'number' && typeof node.value !== 'boolean') return null;
+    case 'logical':
+      return pushLogicalToDb(ast as LogicalNode, columnMap);
 
+    // not() and valuePath[] — cannot push (yet)
+    default:
+      return null;
+  }
+}
+
+/**
+ * Push a single comparison node to DB.
+ * Maps the SCIM attribute to a Prisma column and translates the operator.
+ */
+function pushCompareToDb(
+  node: CompareNode,
+  columnMap: ColumnMap,
+): Record<string, unknown> | null {
   const attrLower = node.attrPath.toLowerCase();
-  const column = columnMap[attrLower];
-  if (!column) return null;
+  const mapped = columnMap[attrLower];
+  if (!mapped) return null; // un-mapped attribute → cannot push
 
-  // Phase 3: Pass value as-is — CITEXT handles case-insensitive matching
-  return { [column]: node.value };
+  return buildColumnFilter(mapped.column, mapped.type, node.op, node.value);
+}
+
+/**
+ * Translate a SCIM operator + value into a Prisma field-level filter.
+ *
+ * For citext/varchar string columns, co/sw/ew use Prisma's contains/startsWith/endsWith
+ * with mode:'insensitive'. PostgreSQL pg_trgm GIN indexes accelerate ILIKE under the hood.
+ *
+ * For boolean columns, only eq/ne/pr make semantic sense.
+ */
+function buildColumnFilter(
+  column: string,
+  type: ColumnType,
+  op: string,
+  value: unknown,
+): Record<string, unknown> | null {
+  switch (op) {
+    case 'eq':
+      return { [column]: value };
+
+    case 'ne':
+      return { [column]: { not: value } };
+
+    case 'co':
+      if (type !== 'citext' && type !== 'varchar') return null;
+      return { [column]: { contains: String(value), mode: 'insensitive' } };
+
+    case 'sw':
+      if (type !== 'citext' && type !== 'varchar') return null;
+      return { [column]: { startsWith: String(value), mode: 'insensitive' } };
+
+    case 'ew':
+      if (type !== 'citext' && type !== 'varchar') return null;
+      return { [column]: { endsWith: String(value), mode: 'insensitive' } };
+
+    case 'gt':
+      return { [column]: { gt: value } };
+
+    case 'ge':
+      return { [column]: { gte: value } };
+
+    case 'lt':
+      return { [column]: { lt: value } };
+
+    case 'le':
+      return { [column]: { lte: value } };
+
+    case 'pr':
+      return { [column]: { not: null } };
+
+    default:
+      return null;
+  }
+}
+
+/**
+ * Push a logical (AND / OR) node to DB.
+ *
+ * AND: Both sides must be pushable for a full push. If only one side pushes,
+ *   we still can't use partial push because the un-pushable side would be lost.
+ *   Instead, we fall back to full in-memory evaluation for safety.
+ *
+ * OR: Both sides must be pushable — if either side can't push, we must fetchAll
+ *   because we can't guarantee completeness.
+ */
+function pushLogicalToDb(
+  node: LogicalNode,
+  columnMap: ColumnMap,
+): Record<string, unknown> | null {
+  const left = tryPushToDb(node.left, columnMap);
+  const right = tryPushToDb(node.right, columnMap);
+
+  if (node.op === 'and') {
+    if (left && right) return { AND: [left, right] };
+    // Partial push is unsafe — the un-pushed side filters would be lost
+    return null;
+  }
+
+  if (node.op === 'or') {
+    if (left && right) return { OR: [left, right] };
+    return null;
+  }
+
+  return null;
 }

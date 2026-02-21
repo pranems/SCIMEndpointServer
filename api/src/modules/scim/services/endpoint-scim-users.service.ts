@@ -70,6 +70,7 @@ export class EndpointScimUsersService {
       scimId,
       externalId: dto.externalId ?? null,
       userName: dto.userName,
+      displayName: typeof dto.displayName === 'string' ? dto.displayName : null,
       active: dto.active ?? true,
       rawPayload: JSON.stringify(sanitizedPayload),
       meta: JSON.stringify({
@@ -202,6 +203,7 @@ export class EndpointScimUsersService {
     const data: UserUpdateInput = {
       externalId: dto.externalId ?? null,
       userName: dto.userName,
+      displayName: typeof dto.displayName === 'string' ? dto.displayName : null,
       active: dto.active ?? true,
       rawPayload: JSON.stringify(sanitizedPayload),
       meta: JSON.stringify({
@@ -277,6 +279,7 @@ export class EndpointScimUsersService {
     const verbosePatch = getConfigBoolean(config, ENDPOINT_CONFIG_FLAGS.VERBOSE_PATCH_SUPPORTED);
     let active = user.active;
     let userName = user.userName;
+    let displayName: string | null = user.displayName ?? null;
     let externalId: string | null = user.externalId ?? null;
     let rawPayload = this.parseJson<Record<string, unknown>>(String(user.rawPayload ?? '{}'));
     const meta = this.parseJson<Record<string, unknown>>(String(user.meta ?? '{}'));
@@ -301,6 +304,9 @@ export class EndpointScimUsersService {
           rawPayload = { ...rawPayload, active: value };
         } else if (path === 'username') {
           userName = this.extractStringValue(operation.value, 'userName');
+        } else if (path === 'displayname') {
+          displayName = this.extractNullableStringValue(operation.value, 'displayName');
+          rawPayload = { ...rawPayload, displayName };
         } else if (path === 'externalid') {
           externalId = this.extractNullableStringValue(operation.value, 'externalId');
         } else if (originalPath && isExtensionPath(originalPath)) {
@@ -343,6 +349,10 @@ export class EndpointScimUsersService {
           if ('userName' in updateObj) {
             userName = this.extractStringValue(updateObj.userName, 'userName');
             delete updateObj.userName;
+          }
+          if ('displayName' in updateObj) {
+            displayName = this.extractNullableStringValue(updateObj.displayName, 'displayName');
+            // Keep displayName in updateObj — it must remain in rawPayload (response is built from it)
           }
           if ('externalId' in updateObj) {
             externalId = this.extractNullableStringValue(updateObj.externalId, 'externalId');
@@ -402,6 +412,7 @@ export class EndpointScimUsersService {
 
     return {
       userName,
+      displayName,
       externalId,
       active,
       rawPayload: JSON.stringify(rawPayload),

@@ -29,6 +29,7 @@ function toUserRecord(resource: Record<string, unknown>): UserRecord {
     scimId: resource.scimId as string,
     externalId: (resource.externalId as string) ?? null,
     userName: resource.userName as string,
+    displayName: (resource.displayName as string) ?? null,
     active: resource.active as boolean,
     rawPayload,
     meta: (resource.meta as string) ?? null,
@@ -48,6 +49,7 @@ export class PrismaUserRepository implements IUserRepository {
         scimId: input.scimId,
         externalId: input.externalId,
         userName: input.userName,
+        displayName: input.displayName,
         active: input.active,
         payload: JSON.parse(input.rawPayload),   // domain string → JSONB
         meta: input.meta,
