@@ -20,19 +20,9 @@ import type { PatchUserDto } from '../dto/patch-user.dto';
 import { ScimMetadataService } from './scim-metadata.service';
 import type { EndpointConfig } from '../../endpoint/endpoint-config.interface';
 import { ENDPOINT_CONFIG_FLAGS, getConfigBoolean } from '../../endpoint/endpoint-config.interface';
-import {
-  isValuePath,
-  parseValuePath,
-  applyValuePathUpdate,
-  addValuePathEntry,
-  removeValuePathEntry,
-  isExtensionPath,
-  parseExtensionPath,
-  applyExtensionUpdate,
-  removeExtensionAttribute,
-  resolveNoPathValue,
-} from '../utils/scim-patch-path';
 import { buildUserFilter } from '../filters/apply-scim-filter';
+import { UserPatchEngine } from '../../../domain/patch/user-patch-engine';
+import { PatchError } from '../../../domain/patch/patch-error';
 
 interface ListUsersParams {
   filter?: string;
@@ -277,266 +267,49 @@ export class EndpointScimUsersService {
     config?: EndpointConfig
   ): Promise<UserUpdateInput> {
     const verbosePatch = getConfigBoolean(config, ENDPOINT_CONFIG_FLAGS.VERBOSE_PATCH_SUPPORTED);
-    let active = user.active;
-    let userName = user.userName;
-    let displayName: string | null = user.displayName ?? null;
-    let externalId: string | null = user.externalId ?? null;
-    let rawPayload = this.parseJson<Record<string, unknown>>(String(user.rawPayload ?? '{}'));
+    const rawPayload = this.parseJson<Record<string, unknown>>(String(user.rawPayload ?? '{}'));
     const meta = this.parseJson<Record<string, unknown>>(String(user.meta ?? '{}'));
 
-    for (const operation of patchDto.Operations) {
-      const op = operation.op?.toLowerCase();
-      if (!['add', 'replace', 'remove'].includes(op || '')) {
-        throw createScimError({
-          status: 400,
-          scimType: 'invalidValue',
-          detail: `Patch operation '${operation.op}' is not supported.`
-        });
+    let result;
+    try {
+      result = UserPatchEngine.apply(
+        patchDto.Operations,
+        {
+          userName: user.userName,
+          displayName: user.displayName ?? null,
+          externalId: user.externalId ?? null,
+          active: user.active,
+          rawPayload,
+        },
+        { verbosePatch },
+      );
+    } catch (err) {
+      if (err instanceof PatchError) {
+        throw createScimError({ status: err.status, scimType: err.scimType, detail: err.message });
       }
-
-      const originalPath = operation.path;
-      const path = originalPath?.toLowerCase();
-
-      if (op === 'add' || op === 'replace') {
-        if (path === 'active') {
-          const value = this.extractBooleanValue(operation.value);
-          active = value;
-          rawPayload = { ...rawPayload, active: value };
-        } else if (path === 'username') {
-          userName = this.extractStringValue(operation.value, 'userName');
-        } else if (path === 'displayname') {
-          displayName = this.extractNullableStringValue(operation.value, 'displayName');
-          rawPayload = { ...rawPayload, displayName };
-        } else if (path === 'externalid') {
-          externalId = this.extractNullableStringValue(operation.value, 'externalId');
-        } else if (originalPath && isExtensionPath(originalPath)) {
-          // Enterprise extension URN path: urn:...:User:manager → update nested attribute
-          const extParsed = parseExtensionPath(originalPath);
-          if (extParsed) {
-            rawPayload = applyExtensionUpdate(rawPayload, extParsed, operation.value);
-          }
-        } else if (originalPath && isValuePath(originalPath)) {
-          // ValuePath filter: emails[type eq "work"].value → update in-place or create
-          const vpParsed = parseValuePath(originalPath);
-          if (vpParsed) {
-            if (op === 'add') {
-              // For add: create array/element if it doesn't exist
-              rawPayload = addValuePathEntry(rawPayload, vpParsed, operation.value);
-            } else {
-              rawPayload = applyValuePathUpdate(rawPayload, vpParsed, operation.value);
-            }
-          }
-        } else if (verbosePatch && originalPath && originalPath.includes('.')) {
-          // Dot-notation path: name.givenName → navigate into nested object
-          const dotIndex = originalPath.indexOf('.');
-          const parentAttr = originalPath.substring(0, dotIndex);
-          const childAttr = originalPath.substring(dotIndex + 1);
-          // Case-insensitive parent lookup (RFC 7643 §2.1)
-          const parentKey = Object.keys(rawPayload).find(
-            k => k.toLowerCase() === parentAttr.toLowerCase()
-          ) ?? parentAttr;
-          const existing = rawPayload[parentKey];
-          if (typeof existing === 'object' && existing !== null && !Array.isArray(existing)) {
-            (existing as Record<string, unknown>)[childAttr] = operation.value;
-          } else {
-            rawPayload[parentKey] = { [childAttr]: operation.value };
-          }
-        } else if (originalPath) {
-          rawPayload = { ...rawPayload, [originalPath]: operation.value };
-        } else if (!path && typeof operation.value === 'object' && operation.value !== null) {
-          // No-path add/replace: normalize keys case-insensitively, then extract first-class DB fields
-          const updateObj = this.normalizeObjectKeys(operation.value as Record<string, unknown>);
-          if ('userName' in updateObj) {
-            userName = this.extractStringValue(updateObj.userName, 'userName');
-            delete updateObj.userName;
-          }
-          if ('displayName' in updateObj) {
-            displayName = this.extractNullableStringValue(updateObj.displayName, 'displayName');
-            // Keep displayName in updateObj — it must remain in rawPayload (response is built from it)
-          }
-          if ('externalId' in updateObj) {
-            externalId = this.extractNullableStringValue(updateObj.externalId, 'externalId');
-            delete updateObj.externalId;
-          }
-          if ('active' in updateObj) {
-            active = this.extractBooleanValue(updateObj.active);
-            delete updateObj.active;
-          }
-          // Resolve dot-notation keys (name.givenName → nested) and
-          // extension URN keys (urn:...:User:attr → extension namespace)
-          rawPayload = resolveNoPathValue(rawPayload, updateObj);
-        }
-      } else if (op === 'remove') {
-        if (path === 'active') {
-          active = false;
-          rawPayload = { ...rawPayload, active: false };
-        } else if (originalPath && isExtensionPath(originalPath)) {
-          // Remove enterprise extension attribute
-          const extParsed = parseExtensionPath(originalPath);
-          if (extParsed) {
-            rawPayload = removeExtensionAttribute(rawPayload, extParsed);
-          }
-        } else if (originalPath && isValuePath(originalPath)) {
-          // Remove valuePath entry from multi-valued attribute
-          const vpParsed = parseValuePath(originalPath);
-          if (vpParsed) {
-            rawPayload = removeValuePathEntry(rawPayload, vpParsed);
-          }
-        } else if (verbosePatch && originalPath && originalPath.includes('.')) {
-          // Dot-notation remove: name.givenName → remove from nested object
-          const dotIndex = originalPath.indexOf('.');
-          const parentAttr = originalPath.substring(0, dotIndex);
-          const childAttr = originalPath.substring(dotIndex + 1);
-          const parentKey = Object.keys(rawPayload).find(
-            k => k.toLowerCase() === parentAttr.toLowerCase()
-          ) ?? parentAttr;
-          const existing = rawPayload[parentKey];
-          if (typeof existing === 'object' && existing !== null && !Array.isArray(existing)) {
-            delete (existing as Record<string, unknown>)[childAttr];
-          }
-        } else if (originalPath) {
-          rawPayload = this.removeAttribute(rawPayload, originalPath);
-        } else {
-          throw createScimError({
-            status: 400,
-            scimType: 'noTarget',
-            detail: 'Remove operation requires a path.'
-          });
-        }
-      }
+      throw err;
     }
 
-    rawPayload = this.stripReservedAttributes(rawPayload);
+    const { extractedFields, payload } = result;
 
-    await this.assertUniqueIdentifiersForEndpoint(userName, externalId ?? undefined, endpointId, user.scimId);
+    await this.assertUniqueIdentifiersForEndpoint(
+      extractedFields.userName ?? user.userName,
+      extractedFields.externalId ?? undefined,
+      endpointId,
+      user.scimId,
+    );
 
     return {
-      userName,
-      displayName,
-      externalId,
-      active,
-      rawPayload: JSON.stringify(rawPayload),
+      userName: extractedFields.userName,
+      displayName: extractedFields.displayName,
+      externalId: extractedFields.externalId,
+      active: extractedFields.active,
+      rawPayload: JSON.stringify(payload),
       meta: JSON.stringify({
         ...meta,
         lastModified: new Date().toISOString()
       })
     } satisfies UserUpdateInput;
-  }
-
-  /**
-   * Normalize incoming JSON object keys to canonical camelCase for known SCIM attributes.
-   * Per RFC 7643 §2.1: "Attribute names are case insensitive".
-   * Unknown keys are preserved as-is.
-   */
-  private normalizeObjectKeys(obj: Record<string, unknown>): Record<string, unknown> {
-    const keyMap: Record<string, string> = {
-      'username': 'userName',
-      'externalid': 'externalId',
-      'active': 'active',
-      'displayname': 'displayName',
-      'name': 'name',
-      'nickname': 'nickName',
-      'profileurl': 'profileUrl',
-      'title': 'title',
-      'usertype': 'userType',
-      'preferredlanguage': 'preferredLanguage',
-      'locale': 'locale',
-      'timezone': 'timezone',
-      'emails': 'emails',
-      'phonenumbers': 'phoneNumbers',
-      'addresses': 'addresses',
-      'photos': 'photos',
-      'ims': 'ims',
-      'roles': 'roles',
-      'entitlements': 'entitlements',
-      'x509certificates': 'x509Certificates',
-    };
-    const result: Record<string, unknown> = {};
-    for (const [key, value] of Object.entries(obj)) {
-      const canonical = keyMap[key.toLowerCase()] ?? key;
-      result[canonical] = value;
-    }
-    return result;
-  }
-
-  private stripReservedAttributes(payload: Record<string, unknown>): Record<string, unknown> {
-    const reserved = new Set(['id', 'username', 'userid', 'userName', 'externalid', 'externalId', 'active']);
-    const entries = Object.entries(payload).filter(
-      ([key]) => !reserved.has(key) && !reserved.has(key.toLowerCase())
-    );
-    return Object.fromEntries(entries);
-  }
-
-  private removeAttribute(payload: Record<string, unknown>, attribute: string): Record<string, unknown> {
-    if (!attribute) {
-      return { ...payload };
-    }
-    const target = attribute.toLowerCase();
-    return Object.fromEntries(
-      Object.entries(payload).filter(([key]) => key.toLowerCase() !== target)
-    );
-  }
-
-  private extractStringValue(value: unknown, attribute: string): string {
-    if (typeof value === 'string') {
-      return value;
-    }
-
-    throw createScimError({
-      status: 400,
-      scimType: 'invalidValue',
-      detail: `${attribute} must be provided as a string.`
-    });
-  }
-
-  private extractNullableStringValue(value: unknown, attribute: string): string | null {
-    if (value === null || value === undefined) {
-      return null;
-    }
-
-    if (typeof value === 'string') {
-      return value;
-    }
-
-    throw createScimError({
-      status: 400,
-      scimType: 'invalidValue',
-      detail: `${attribute} must be provided as a string or null.`
-    });
-  }
-
-  private extractBooleanValue(value: unknown): boolean {
-    if (typeof value === 'boolean') {
-      return value;
-    }
-
-    // Handle string boolean values from Entra ID
-    if (typeof value === 'string') {
-      const lowerValue = value.toLowerCase();
-      if (lowerValue === 'true') return true;
-      if (lowerValue === 'false') return false;
-    }
-
-    if (typeof value === 'object' && value !== null && 'active' in value) {
-      const active = (value as { active: unknown }).active;
-      if (typeof active === 'boolean') {
-        return active;
-      }
-      // Also handle string boolean in nested objects
-      if (typeof active === 'string') {
-        const lowerActive = active.toLowerCase();
-        if (lowerActive === 'true') return true;
-        if (lowerActive === 'false') return false;
-      }
-    }
-
-    throw createScimError({
-      status: 400,
-      scimType: 'invalidValue',
-      detail: `Patch operation requires boolean value for active. Received: ${typeof value} "${String(
-        value
-      )}"`
-    });
   }
 
   private toScimUserResource(user: UserRecord, baseUrl: string): ScimUserResource {

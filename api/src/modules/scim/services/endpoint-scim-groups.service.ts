@@ -28,6 +28,8 @@ import type { CreateGroupDto, GroupMemberDto } from '../dto/create-group.dto';
 import type { PatchGroupDto } from '../dto/patch-group.dto';
 import { ScimMetadataService } from './scim-metadata.service';
 import { buildGroupFilter } from '../filters/apply-scim-filter';
+import { GroupPatchEngine } from '../../../domain/patch/group-patch-engine';
+import { PatchError } from '../../../domain/patch/patch-error';
 
 interface ListGroupsParams {
   filter?: string;
@@ -186,31 +188,26 @@ export class EndpointScimGroupsService {
       ? true 
       : getConfigBoolean(endpointConfig, ENDPOINT_CONFIG_FLAGS.PATCH_OP_ALLOW_REMOVE_ALL_MEMBERS);
 
-    let displayName: string = group.displayName;
-    let externalId: string | null = group.externalId ?? null;
-    let memberDtos: GroupMemberDto[] = this.memberRecordsToDtos(group.members);
-    let rawPayload = this.parseJson<Record<string, unknown>>(String(group.rawPayload ?? '{}'));
-
-    for (const operation of dto.Operations) {
-      const op = operation.op?.toLowerCase();
-      switch (op) {
-        case 'replace':
-          ({ displayName, externalId, members: memberDtos, rawPayload } = this.handleReplace(operation, displayName, externalId, memberDtos, rawPayload));
-          break;
-        case 'add':
-          memberDtos = this.handleAdd(operation, memberDtos, allowMultiMemberAdd);
-          break;
-        case 'remove':
-          memberDtos = this.handleRemove(operation, memberDtos, allowMultiMemberRemove, allowRemoveAllMembers);
-          break;
-        default:
-          throw createScimError({
-            status: 400,
-            scimType: 'invalidValue',
-            detail: `Patch operation '${operation.op}' is not supported.`
-          });
+    let patchResult;
+    try {
+      patchResult = GroupPatchEngine.apply(
+        dto.Operations,
+        {
+          displayName: group.displayName,
+          externalId: group.externalId ?? null,
+          members: this.memberRecordsToDtos(group.members),
+          rawPayload: this.parseJson<Record<string, unknown>>(String(group.rawPayload ?? '{}')),
+        },
+        { allowMultiMemberAdd, allowMultiMemberRemove, allowRemoveAllMembers },
+      );
+    } catch (err) {
+      if (err instanceof PatchError) {
+        throw createScimError({ status: err.status, scimType: err.scimType, detail: err.message });
       }
+      throw err;
     }
+
+    const { displayName, externalId, members: memberDtos, payload: rawPayload } = patchResult;
 
     // SQLite compromise (HIGH): Pre-resolve member user IDs OUTSIDE the transaction to
     // minimise write-lock hold time. Every ms inside $transaction holds the global SQLite
@@ -369,194 +366,6 @@ export class EndpointScimGroupsService {
     }
   }
 
-  private handleReplace(
-    operation: PatchGroupDto['Operations'][number],
-    currentDisplayName: string,
-    currentExternalId: string | null,
-    members: GroupMemberDto[],
-    rawPayload: Record<string, unknown> = {}
-  ): { displayName: string; externalId: string | null; members: GroupMemberDto[]; rawPayload: Record<string, unknown> } {
-    const path = operation.path?.toLowerCase();
-
-    // No path — value is either a string (displayName) or an object with attribute(s)
-    if (!path) {
-      if (typeof operation.value === 'string') {
-        return { displayName: operation.value, externalId: currentExternalId, members, rawPayload };
-      }
-      if (typeof operation.value === 'object' && operation.value !== null) {
-        const obj = operation.value as Record<string, unknown>;
-        let newDisplayName = currentDisplayName;
-        let newExternalId = currentExternalId;
-        let newMembers = members;
-        const updatedPayload = { ...rawPayload };
-
-        if (typeof obj.displayName === 'string') {
-          newDisplayName = obj.displayName;
-        }
-        if ('externalId' in obj) {
-          newExternalId = typeof obj.externalId === 'string' ? obj.externalId : null;
-        }
-        if (Array.isArray(obj.members)) {
-          newMembers = (obj.members as unknown[]).map((m) => this.toMemberDto(m));
-          newMembers = this.ensureUniqueMembers(newMembers);
-        }
-
-        // Store any other attributes in rawPayload
-        for (const [key, val] of Object.entries(obj)) {
-          if (key !== 'displayName' && key !== 'externalId' && key !== 'members' && key !== 'schemas') {
-            updatedPayload[key] = val;
-          }
-        }
-
-        return { displayName: newDisplayName, externalId: newExternalId, members: newMembers, rawPayload: updatedPayload };
-      }
-      throw createScimError({
-        status: 400,
-        scimType: 'invalidValue',
-        detail: 'Replace operation requires a string or object value.'
-      });
-    }
-
-    if (path === 'displayname') {
-      if (typeof operation.value !== 'string') {
-        throw createScimError({
-          status: 400,
-          scimType: 'invalidValue',
-          detail: 'Replace operation for displayName requires a string value.'
-        });
-      }
-      return { displayName: operation.value, externalId: currentExternalId, members, rawPayload };
-    }
-
-    if (path === 'externalid') {
-      const newExtId = typeof operation.value === 'string' ? operation.value : null;
-      return { displayName: currentDisplayName, externalId: newExtId, members, rawPayload };
-    }
-
-    if (path === 'members') {
-      if (!Array.isArray(operation.value)) {
-        throw createScimError({
-          status: 400,
-          scimType: 'invalidValue',
-          detail: 'Replace operation for members requires an array value.'
-        });
-      }
-
-      const normalized = operation.value.map((member) => this.toMemberDto(member));
-      return { displayName: currentDisplayName, externalId: currentExternalId, members: this.ensureUniqueMembers(normalized), rawPayload };
-    }
-
-    throw createScimError({
-      status: 400,
-      scimType: 'invalidPath',
-      detail: `Patch path '${operation.path ?? ''}' is not supported.`
-    });
-  }
-
-  private handleAdd(
-    operation: PatchGroupDto['Operations'][number],
-    members: GroupMemberDto[],
-    allowMultiMemberAdd: boolean = false
-  ): GroupMemberDto[] {
-    const path = operation.path?.toLowerCase();
-    if (path && path !== 'members') {
-      throw createScimError({
-        status: 400,
-        scimType: 'invalidPath',
-        detail: `Add operation path '${operation.path ?? ''}' is not supported.`
-      });
-    }
-
-    if (!operation.value) {
-      throw createScimError({
-        status: 400,
-        scimType: 'invalidValue',
-        detail: 'Add operation for members requires a value.'
-      });
-    }
-
-    const value = Array.isArray(operation.value) ? operation.value : [operation.value];
-    
-    // If MultiOpPatchRequestAddMultipleMembersToGroup is false and multiple members provided,
-    // reject the request - each member must be added in a separate operation
-    if (!allowMultiMemberAdd && value.length > 1) {
-      throw createScimError({
-        status: 400,
-        scimType: 'invalidValue',
-        detail: 'Adding multiple members in a single operation is not allowed. ' +
-                'Each member must be added in a separate PATCH operation. ' +
-                `To enable multi-member add, set endpoint config flag "${ENDPOINT_CONFIG_FLAGS.MULTI_OP_PATCH_ADD_MULTIPLE_MEMBERS_TO_GROUP}" to "True".`
-      });
-    }
-
-    const newMembers = value.map((member) => this.toMemberDto(member));
-
-    return this.ensureUniqueMembers([...members, ...newMembers]);
-  }
-
-  private handleRemove(
-    operation: PatchGroupDto['Operations'][number],
-    members: GroupMemberDto[],
-    allowMultiMemberRemove: boolean = false,
-    allowRemoveAllMembers: boolean = true
-  ): GroupMemberDto[] {
-    const path = operation.path?.toLowerCase();
-
-    // Check if value array is provided with members to remove
-    if (operation.value && Array.isArray(operation.value) && operation.value.length > 0) {
-      // Validate: if removing multiple members and flag is not set, reject
-      if (!allowMultiMemberRemove && operation.value.length > 1) {
-        throw createScimError({
-          status: 400,
-          scimType: 'invalidValue',
-          detail: 'Removing multiple members in a single operation is not allowed. ' +
-                  'Each member must be removed in a separate PATCH operation. ' +
-                  `To enable multi-member remove, set endpoint config flag "${ENDPOINT_CONFIG_FLAGS.MULTI_OP_PATCH_REMOVE_MULTIPLE_MEMBERS_FROM_GROUP}" to "True".`
-        });
-      }
-
-      // Extract member IDs to remove from value array
-      const membersToRemove = new Set<string>();
-      for (const item of operation.value) {
-        if (item && typeof item === 'object' && 'value' in item) {
-          membersToRemove.add((item as { value: string }).value);
-        }
-      }
-
-      // Filter out the specified members
-      return members.filter((member) => !membersToRemove.has(member.value));
-    }
-
-    // Handle targeted removal: members[value eq "user-id"]
-    const memberPathMatch = path?.match(/^members\[value\s+eq\s+"?([^"]+)"?\]$/i);
-    if (memberPathMatch) {
-      const valueToRemove = memberPathMatch[1];
-      return members.filter((member) => member.value !== valueToRemove);
-    }
-
-    // Handle path=members without value array - remove all members (RFC 7644 compliant)
-    if (path === 'members') {
-      if (!allowRemoveAllMembers) {
-        throw createScimError({
-          status: 400,
-          scimType: 'invalidValue',
-          detail: 'Removing all members via path=members is not allowed. ' +
-                  'Specify members to remove using a value array or path filter like members[value eq "user-id"]. ' +
-                  `To enable remove-all, set endpoint config flag "${ENDPOINT_CONFIG_FLAGS.PATCH_OP_ALLOW_REMOVE_ALL_MEMBERS}" to "True".`
-        });
-      }
-      // Remove all members per RFC 7644 Section 3.5.2.2
-      return [];
-    }
-
-    // Unsupported path
-    throw createScimError({
-      status: 400,
-      scimType: 'invalidPath',
-      detail: `Remove operation path '${operation.path ?? ''}' is not supported for groups.`
-    });
-  }
-
   private async resolveMemberInputs(
     memberDtos: GroupMemberDto[],
     endpointId: string,
@@ -573,31 +382,6 @@ export class EndpointScimGroupsService {
       type: m.type ?? null,
       display: m.display ?? null,
     }));
-  }
-
-  private toMemberDto(member: unknown): GroupMemberDto {
-    if (!member || typeof member !== 'object' || !('value' in member)) {
-      throw createScimError({
-        status: 400,
-        scimType: 'invalidValue',
-        detail: 'Member object must include a value property.'
-      });
-    }
-
-    const typed = member as { value: string; display?: string; type?: string };
-    return {
-      value: typed.value,
-      display: typed.display,
-      type: typed.type
-    };
-  }
-
-  private ensureUniqueMembers(members: GroupMemberDto[]): GroupMemberDto[] {
-    const seen = new Map<string, GroupMemberDto>();
-    for (const member of members) {
-      seen.set(member.value, member);
-    }
-    return Array.from(seen.values());
   }
 
   private memberRecordsToDtos(members: MemberRecord[]): GroupMemberDto[] {

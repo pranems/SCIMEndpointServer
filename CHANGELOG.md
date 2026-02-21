@@ -5,6 +5,31 @@ All notable changes to SCIMServer will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.13.0] - 2026-02-21
+
+### Added
+- **Domain-Layer PATCH Engine (Phase 5):** Extracted inline SCIM PATCH logic from NestJS services into standalone, pure-domain engine classes with zero framework dependencies
+  - `UserPatchEngine` — static `apply()` handling all SCIM path types: simple attributes, valuePath expressions (`emails[type eq "work"].value`), extension URN paths, dot-notation, no-path bulk merge
+  - `GroupPatchEngine` — static `apply()` handling replace/add/remove operations on members with config flag enforcement (`allowMultiMemberAdd`, `allowMultiMemberRemove`, `allowRemoveAllMembers`)
+  - `PatchError` — domain-layer error class with `status` + `scimType` (no NestJS dependency); services catch and convert to `createScimError()`
+  - `PatchConfig` / `GroupMemberPatchConfig` — typed interfaces for config flag passing from services to engines
+  - Domain barrel export: `api/src/domain/patch/index.ts`
+- **73 new unit tests:** 36 UserPatchEngine tests + 37 GroupPatchEngine tests covering all path types, operations, config flags, error handling, and utility methods
+- **Phase 5 Documentation:** `docs/phases/PHASE_05_PATCH_ENGINE.md`
+
+### Changed
+- **`endpoint-scim-users.service.ts`:** Replaced ~200-line inline PATCH method + 6 helper methods with ~35-line `UserPatchEngine.apply()` delegation (~626 → ~415 lines, 34% reduction)
+- **`endpoint-scim-groups.service.ts`:** Replaced inline operation loop + 5 helper methods (`handleReplace/Add/Remove`, `toMemberDto`, `ensureUniqueMembers`) with `GroupPatchEngine.apply()` delegation (~677 → ~465 lines, 31% reduction)
+- **Services as thin orchestrators:** Load DB record → build state → delegate to engine → catch `PatchError` → save result
+
+### Verified
+- **984/984 unit tests passing** (29 suites) — up from 911 (+73 new PatchEngine tests)
+- **193/193 E2E tests passing** (15 suites)
+- Build clean (TypeScript), zero compilation errors
+- Docker image built and tested (`scimserver:latest` v0.13.0)
+
+---
+
 ## [0.12.0] - 2026-02-21
 
 ### Added
